@@ -1,0 +1,9 @@
+TRENCOD IDENTITY — BETA 0.7
+New icon generated with the built-in Imagegen tool.
+Prompt: Original spark-comet mascot: plump mint rounded-diamond creature with two navy rounded-square eyes, a lavender three-pronged tail and small tuft; matte softly sculpted 3D, midnight rounded-square tile, transparent outside. No letters, code brackets, chevrons, play button, owl or known brand characters.
+
+Dark and light themes follow the system initially, then remember the user's choice.
+Intro: two soft bounces, brief wordmark reveal, automatic exit after 2.5 seconds.
+Reduced motion: no bounce or particles; exit after 0.7 seconds.
+There are no replay controls or replay API. Escape can dismiss the intro.
+Sound is best-effort: only when the browser allows audio, using a gesture during the intro or existing user activation; the intro never restarts or waits for sound.

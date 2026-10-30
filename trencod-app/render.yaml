@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: trencod
+    runtime: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: python server.py --no-browser
+    healthCheckPath: /healthz
+    envVars:
+      - key: TRENCOD_HOST
+        value: 0.0.0.0
+      - key: TRENCOD_DATA_DIR
+        value: /var/data
+    disk:
+      name: trencod-data
+      mountPath: /var/data
+      sizeGB: 1

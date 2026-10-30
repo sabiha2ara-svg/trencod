@@ -1,0 +1,64 @@
+TRENCOD 0.8 — CREATOR STUDIO
+
+UPGRADING? KEEP YOUR CREATORS:
+1. Close the old Trencod server window. Extract this ZIP into a NEW folder.
+2. Before starting the new version, double-click UPGRADE-KEEP-CREATORS.bat.
+   Choose your OLD trencod-app folder. It copies accounts, games and coins.
+   It will not overwrite an existing new database or modify your old folder.
+3. Open START-TRENCOD.bat in the NEW folder. Sign in with your existing username.
+
+NEW INSTALL:
+Open START-TRENCOD.bat once. Keep that window open.
+Python 3.10+ and internet are needed for first setup.
+Do not open public/index.html directly.
+
+TRY THE NEW TOOLS:
+Studio -> create a team -> share its invite code with a friend.
+Use a second browser account to test chat and shared edits.
+Pixel & animation -> draw -> duplicate frame -> change it -> Play animation.
+Save artwork, or Use in game -> Code -> Insert artwork.
+Code starts empty. Save and publish your own game.
+Shop -> choose your published original -> set a price and credit terms.
+Another creator can buy a license and edit/export their purchased version.
+
+AI AND PAYMENTS:
+Normal Bot: 2,000 TC; Smart Bot: 5,000 TC.
+Both are disabled until the owner configures an AI connection.
+The proposed US $100 / 10,000 TC pack is displayed but cannot be purchased.
+No real money is collected, and coins cannot be cashed out.
+See OWNER-SETUP.md for configuration and remaining limitations.
+
+PROFILE & COMMUNITY:
+Click Profile near the top right. Sign out is inside that page.
+Open Creators to find people, view profiles and follow them.
+Mutual follows count as friends. Six friends unlock a daily 50 TP bonus
+when you save changed code or art. TP does not buy things or count as TC.
+TC milestone badges exclude bonus coins and Studio Support purchases.
+Profile shows your streak, releases, friend badges and permanent achievements.
+Game pages now have comments; game creators can remove comments and users
+can report them. Studio Support random purchases require owner funding
+and activation; see OWNER-SETUP.md.
+
+NEW IN 0.7 — TRY THESE SEVEN FEATURES:
+1. Play -> Play something new: discover a public game.
+2. Visual editor: drag objects -> Play preview -> Save & publish.
+3. Weekly Game Jam: make a new original game this week -> submit -> vote.
+4. Test my game: request feedback; another account plays and replies.
+5. Open a public game -> Remix family tree.
+6. Shop -> Try saved version. Art previews & shop -> Try character before buying.
+7. Creator devlogs: post progress, follow creators and reply to updates.
+
+To use bought/created art: Use in my game -> Code -> Insert artwork.
+Visual-editor objects do not yet accept custom sprite art.
+All screens are in English; dark/light mode remains available.
+
+NEW IN 0.8:
+- Inbox in the top navigation: follows, comments, remixes, playtests and sales.
+  Refresh checks for new events. Mark all read clears the unread indicator.
+- Play later: open a public game and select Save for later. Your list is private.
+- Explore: search descriptions, select Originals/Remixes/Visual editor games,
+  and sort by Newest, Most liked or A-Z.
+- Code > Version history: preview/download/restore the last 20 saved versions.
+  History starts with changes saved in 0.8. Restore makes the game private;
+  check it, then publish again. Current code is saved for undoing a restore.
+  Visual scene layouts are not restored: use Code after restoring a version.
