@@ -1,5 +1,5 @@
 """Discovery, visual builder, jams, playtests, remix trees and creator devlogs."""
-import json,secrets,time,math
+import json,secrets,time,math,re
 from datetime import datetime,timezone,timedelta
 from flask import g,request,jsonify
 THEMES=['One-button Adventure','Underwater City','Tiny Planet','Lost in the Library','Friendly Monsters','A World Without Gravity','Two Worlds, One Hero','The Last Light']
@@ -25,6 +25,21 @@ def week(c):
 def validate_scene(s):
  if not isinstance(s,dict):raise ValueError('Invalid scene.')
  out={}
+ sprites=s.get('sprites',{})
+ if not isinstance(sprites,dict) or len(sprites)>32:raise ValueError('Use up to 32 sprite designs.')
+ if len(json.dumps(sprites))>100000:raise ValueError('Sprite artwork must stay below 100 KB. Use fewer animation frames.')
+ normalized={}
+ for sid,art in sprites.items():
+  if not isinstance(sid,str) or not re.fullmatch(r'[a-zA-Z0-9_-]{1,80}',sid) or not isinstance(art,dict):raise ValueError('Invalid sprite.')
+  frames=art.get('frames');fps=art.get('fps');name=art.get('name','Sprite')
+  if not isinstance(name,str) or len(name)>80:raise ValueError('Sprite name must be under 80 characters.')
+  if type(fps) is not int or not 1<=fps<=24:raise ValueError('Sprite FPS must be 1–24.')
+  if not isinstance(frames,list) or not 1<=len(frames)<=16:raise ValueError('Use 1–16 sprite frames.')
+  for frame in frames:
+   if not isinstance(frame,list) or len(frame)!=256:raise ValueError('Sprite frames must have 256 pixels.')
+   if any(c is not None and (not isinstance(c,str) or not re.fullmatch(r'#[0-9a-fA-F]{6}',c)) for c in frame):raise ValueError('Invalid sprite pixel color.')
+  normalized[sid]={'name':name,'frames':frames,'fps':fps}
+ if normalized:out['sprites']=normalized
  for k,lo,hi in [('speed',60,400),('jump',150,650),('gravity',300,1600)]:
   v=s.get(k)
   if type(v) not in (int,float) or not math.isfinite(v) or not lo<=v<=hi:raise ValueError(f'{k} must be {lo}–{hi}.')
@@ -40,6 +55,9 @@ def validate_scene(s):
    if type(v) not in (int,float) or not math.isfinite(v) or not 0<=v<=hi or (k in ('w','h') and v<8):raise ValueError('Object coordinates are outside the scene.')
    row[k]=v
   if row['x']+row['w']>800 or row['y']+row['h']>450:raise ValueError('Keep objects inside the canvas.')
+  if e.get('sprite') is not None:
+   if not isinstance(e['sprite'],str) or e['sprite'] not in normalized:raise ValueError('Object sprite was not found.')
+   row['sprite']=e['sprite']
   clean.append(row)
  if sum(x['type']=='player' for x in clean)!=1 or sum(x['type']=='goal' for x in clean)!=1:raise ValueError('Keep exactly one player and one finish point.')
  out['objects']=clean;return out
@@ -266,8 +284,12 @@ def install(app,core):
   if type(price)!=int or not 1<=price<=1000000:return fail('Choose a whole-number price from 1 to 1,000,000 TC.')
   if g.data.get('rights') is not True:return fail('Confirm you own the rights to this artwork.')
   with db() as c:
+   c.execute('BEGIN IMMEDIATE')
    r=c.execute("SELECT * FROM studio_files WHERE id=? AND owner=? AND room_id IS NULL AND kind='art'",(g.data.get('id'),g.user['id'])).fetchone()
    if not r:return fail('Choose your own personal artwork. Team artwork cannot be sold here.',403)
+   old=c.execute('SELECT id FROM art_listings WHERE file_id=?',(r['id'],)).fetchone()
+   if c.execute("SELECT 1 FROM exclusive_sales WHERE kind='art' AND asset_id=?",(r['id'],)).fetchone():return fail('Purchased artwork cannot be resold in this version.',409)
+   if old and c.execute('SELECT 1 FROM art_licenses WHERE listing_id=?',(old['id'],)).fetchone():return fail('This artwork already has buyers and cannot be sold exclusively.',409)
    c.execute('INSERT INTO art_listings VALUES(?,?,?,?,?,?,1) ON CONFLICT(file_id) DO UPDATE SET title=excluded.title,body=excluded.body,price=excluded.price,active=1',(secrets.token_hex(12),g.user['id'],r['id'],r['name'],r['body'],price))
   return jsonify(ok=True)
 
@@ -281,14 +303,24 @@ def install(app,core):
  @auth
  def art_buy():
   with db() as c:
-   c.execute('BEGIN IMMEDIATE');r=c.execute('SELECT a.*,u.name seller FROM art_listings a JOIN users u ON u.id=a.user_id WHERE a.id=? AND active=1',(g.data.get('id'),)).fetchone()
+   c.execute('BEGIN IMMEDIATE')
+   sale=c.execute("SELECT * FROM exclusive_sales WHERE kind='art' AND listing_id=?",(g.data.get('id'),)).fetchone()
+   if sale:
+    if sale['buyer']==g.user['id']:return jsonify(ok=True,id=sale['asset_id'])
+    return fail('Already sold. No coins charged.',409)
+   r=c.execute('SELECT a.*,u.name seller FROM art_listings a JOIN users u ON u.id=a.user_id WHERE a.id=? AND active=1',(g.data.get('id'),)).fetchone()
    if not r:return fail('Listing unavailable.',404)
    if r['user_id']==g.user['id']:return fail('This is your own artwork.')
    if c.execute('SELECT 1 FROM art_licenses WHERE user_id=? AND listing_id=?',(g.user['id'],r['id'])).fetchone():return jsonify(ok=True)
+   if not c.execute('SELECT 1 FROM studio_files WHERE id=? AND owner=? AND room_id IS NULL',(r['file_id'],r['user_id'])).fetchone():return fail('Artwork is no longer available.',409)
+   if c.execute('SELECT 1 FROM art_licenses WHERE listing_id=?',(r['id'],)).fetchone():return fail('Legacy listing closed.',409)
    for uid in (g.user['id'],r['user_id']):core['wallet_init'](c,uid)
    if not c.execute('UPDATE wallets SET balance=balance-? WHERE user_id=? AND balance>=?',(r['price'],g.user['id'],r['price'])).rowcount:return fail('Not enough Trencoins.',409)
    c.execute('UPDATE wallets SET balance=balance+? WHERE user_id=?',(r['price'],r['user_id']))
    c.execute('INSERT INTO art_licenses VALUES(?,?,?,?,?,?,?)',(g.user['id'],r['id'],r['title'],r['body'],r['price'],r['seller'],now()))
-   for uid,amount,reason in [(g.user['id'],-r['price'],'Art license: '),(r['user_id'],r['price'],'Sale: ')]:
+   c.execute('UPDATE studio_files SET owner=?,body=?,revision=revision+1,updated=? WHERE id=?',(g.user['id'],r['body'],now(),r['file_id']))
+   c.execute('UPDATE art_listings SET active=0 WHERE id=?',(r['id'],))
+   c.execute('INSERT INTO exclusive_sales VALUES(?,?,?,?,?,?,?)',('art',r['id'],r['file_id'],r['user_id'],g.user['id'],r['body'],now()))
+   for uid,amount,reason in [(g.user['id'],-r['price'],'Exclusive art: '),(r['user_id'],r['price'],'Sale: ')]:
     c.execute('INSERT INTO ledger(user_id,amount,reason,event_key,created) VALUES(?,?,?,?,?)',(uid,amount,reason+r['title'],'art:'+r['id']+':'+g.user['id'],now()))
   return jsonify(ok=True)

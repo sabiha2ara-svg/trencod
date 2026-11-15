@@ -10,7 +10,7 @@ from werkzeug.exceptions import HTTPException
 ROOT=Path(__file__).resolve().parent
 PUBLIC=ROOT/'public'
 DATA=Path(os.environ.get('TRENCOD_DATA_DIR',str(ROOT/'data')))
-DATA.mkdir(parents=True,exist_ok=True)
+if not os.environ.get('DATABASE_URL') and not os.environ.get('RENDER'): DATA.mkdir(parents=True,exist_ok=True)
 DB=DATA/'trencod.sqlite3'
 PORT=int(os.environ.get('PORT',os.environ.get('TRENCOD_PORT','8765')))
 HOST=os.environ.get('TRENCOD_HOST','0.0.0.0' if os.environ.get('RENDER') else '127.0.0.1')
@@ -23,8 +23,8 @@ app=Flask(__name__,static_folder=None)
 app.config['MAX_CONTENT_LENGTH']=600000
 
 def db():
-    c=sqlite3.connect(DB,timeout=20);c.row_factory=sqlite3.Row
-    c.execute('PRAGMA foreign_keys=ON');return c
+    from database import connect
+    return connect(DB)
 
 def fail(message,status=400):return jsonify(error=message),status
 
@@ -35,8 +35,8 @@ def text(data,key,maxlen,required=False):
     return v
 
 def init():
-    if DB.exists() and not (DATA/'before-0.8.sqlite3').exists():
-        with sqlite3.connect(DB) as source, sqlite3.connect(DATA/'before-0.8.sqlite3') as backup: source.backup(backup)
+    if not os.environ.get('DATABASE_URL') and DB.exists() and not (DATA/'before-exclusive-sales.sqlite3').exists():
+        with sqlite3.connect(DB) as source, sqlite3.connect(DATA/'before-exclusive-sales.sqlite3') as backup: source.backup(backup)
     with db() as c:
         c.execute('PRAGMA journal_mode=WAL')
         c.executescript('''
@@ -52,6 +52,8 @@ def init():
         CREATE INDEX IF NOT EXISTS sessions_expiry ON sessions(expires);
         CREATE INDEX IF NOT EXISTS published_projects ON projects(published,updated);
         ''')
+        if getattr(c,'dialect',None)=='postgres':
+            c.execute('CREATE UNIQUE INDEX IF NOT EXISTS users_name_lower ON users(lower(name))')
         from studio_features import schema
         schema(c)
         from community import schema as community_schema
@@ -60,6 +62,8 @@ def init():
         discovery_schema(c)
         from quality import schema as quality_schema
         quality_schema(c)
+        from exclusive import migrate
+        migrate(c)
         seeds=json.loads((ROOT/'games.json').read_text(encoding='utf-8'))
         for p in seeds:
             # Update only built-in games, never a user's project or remix.
@@ -129,6 +133,10 @@ def headers(response):
 
 @app.errorhandler(ValueError)
 def invalid(e):return fail(str(e))
+@app.errorhandler(sqlite3.IntegrityError)
+def integrity_error(e):
+    if 'exclusive' in str(e).lower():return fail('This content was sold exclusively. You cannot save, publish or relist another copy.',409)
+    return fail('This action conflicts with an existing record. No changes were saved.',409)
 @app.errorhandler(HTTPException)
 def http_error(e):return fail(e.description,e.code)
 @app.errorhandler(Exception)
@@ -137,9 +145,27 @@ def unexpected(e):
     return fail('The server could not finish that action. Your existing projects are safe. Please try again.',500)
 
 @app.get('/healthz')
-def health():return jsonify(ok=True,version='0.8')
+def health():
+    try:
+        with db() as c:c.execute('SELECT 1').fetchone()
+    except Exception:return jsonify(ok=False,error='Database unavailable'),503
+    return jsonify(ok=True,version='0.9.0',storage='postgres' if os.environ.get('DATABASE_URL') else 'local-sqlite')
 @app.get('/api/me')
 def me():return jsonify(user=g.user)
+@app.get('/api/my-backup')
+@auth
+def my_backup():
+    uid=g.user['id']
+    with db() as c:
+        c.execute('BEGIN IMMEDIATE')
+        projects=[dict(r) for r in c.execute('SELECT * FROM projects WHERE owner=?',(uid,))]
+        art=[dict(r) for r in c.execute('SELECT * FROM studio_files WHERE owner=? AND room_id IS NULL',(uid,))]
+        scenes=[dict(r) for r in c.execute('SELECT v.* FROM visual_scenes v JOIN projects p ON p.id=v.project_id WHERE p.owner=?',(uid,))]
+    response=jsonify(format='trencod-project-backup-v1',exported_at=time.time(),creator=g.user,
+                     projects=projects,personal_files=art,visual_scenes=scenes)
+    response.headers['Content-Disposition']='attachment; filename="trencod-my-projects.json"'
+    return response
+
 @app.post('/api/register')
 @app.post('/api/login')
 def sign_in():
@@ -232,6 +258,7 @@ def save():
 def publish():
     pid=g.data.get('id')
     with db() as c:
+        c.execute('BEGIN IMMEDIATE')
         row=c.execute('SELECT owner FROM projects WHERE id=?',(pid,)).fetchone()
         if not row or row['owner']!=g.user['id']:return fail('This is not your project.',403)
         c.execute('UPDATE projects SET published=?,updated=? WHERE id=?',(int(request.path.endswith('/publish')),time.time(),pid))
@@ -244,6 +271,7 @@ def publish():
 @auth
 def remix():
     with db() as c:
+        c.execute('BEGIN IMMEDIATE')
         paid=c.execute('SELECT id FROM listings WHERE project_id=? AND active=1',(g.data.get('id'),)).fetchone()
         licensed=c.execute('SELECT 1 FROM licensed_projects WHERE project_id=?',(g.data.get('id'),)).fetchone()
         if paid or licensed:return fail('This creator sells a source license. Open Creator Market to buy or import your owned copy.',403)
@@ -325,7 +353,7 @@ def item(item_id):
 def index():return send_from_directory(PUBLIC,'index.html')
 @app.get('/<filename>')
 def static_file(filename):
-    if filename not in {'app.js','style.css','intro.css','intro.js','trencod-icon.png','theme.js','theme.css','creator.js','creator.css','profile.js','profile.css','adventures.js','adventures.css','visual-runtime.js','quality.js'}:return fail('Page not found.',404)
+    if filename not in {'sprites.js','workspace.js','workspace.css','app.js','style.css','intro.css','intro.js','trencod-icon.png','theme.js','theme.css','creator.js','creator.css','profile.js','profile.css','adventures.js','adventures.css','visual-runtime.js','quality.js'}:return fail('Page not found.',404)
     return send_from_directory(PUBLIC,filename)
 
 from studio_features import install

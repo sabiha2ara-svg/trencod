@@ -1,67 +1,42 @@
-# Trencod 0.8 validation — 30 October 2026
+# Trencod 0.9 verification — 2026-11-15
 
-31 Python unittest groups pass. Coverage includes existing authentication and scrypt migration, project isolation/publishing/remixing, origin and host checks, old asset purchases, concurrent purchase idempotency, milestones and duplicate-claim prevention, private rooms and member removal, shared-file revision conflicts, pixel data validation/persistence, source-license seller transfers and immutable purchase snapshots, purchased-copy resale restriction, unavailable AI purchase without charge, configured AI unlock and mocked Responses API output, and database import without overwriting existing data.
+## Executed checks
+- 52 Python API/storage tests on SQLite: passed.
+- 51 matching API/storage tests against PostgreSQL 16.2 in standalone mode: passed. The SQLite file-copy test is SQLite-only.
+- 11 workspace JavaScript assertions and 2 sprite JavaScript assertions: passed.
+- Python compilation and changed JavaScript syntax checks: passed.
+- Restart check: saved an account, game and artwork; exited both app and standalone Postgres; opened a new app process with a new empty local data directory; login, projects, artwork and wallet balance survived.
 
-Actual Chromium 134 browser flow passed with two independent accounts:
-- Registration and login cookies; new nickname privacy copy.
-- Create a room, join by invite, send and receive a team message.
-- Save shared game code and load it from the second account.
-- Draw pixels, duplicate a frame, change it, save a team animation and play it.
-- Insert the generated PNG-based animation into an empty code project.
-- Save and publish a game; list its source license.
-- Buy from the second account, debit the buyer and import the licensed version with required attribution.
-- Confirm disabled unconfigured bots and absence of daily giveaways.
-- View mobile layout at 390px and switch light/dark mode without horizontal overflow.
+Coverage includes case-insensitive login, ownership transfer, duplicate sale blocking,
+insufficient-funds handling, purchase retries, version history, visual scenes, workspace
+source preservation, private project exports and refusing Render startup without DATABASE_URL.
 
-Desktop Studio, art editor, and mobile art editor screenshots were visually inspected. JavaScript syntax and Python compilation pass. Distribution excludes user databases, environments and private configuration.
+## Exact limits of this verification
+This environment prohibits local sockets. PostgreSQL tests used a temporary stdin/stdout
+transport to the real PostgreSQL standalone engine, while running the app's SQL adapter
+and PostgreSQL triggers. That transport serializes requests: it verifies SQL/API behavior
+but does not validate live network connections, pooled SSL, or real multi-connection lock
+contention. SQLite concurrency tests did run with separate connections/threads.
+The temporary transport is not included in the ZIP; production uses psycopg 3.
 
-Limitations: AI provider calls were mocked, not live. Payment checkout is intentionally unavailable. The Windows BAT launchers and tkinter picker were not run on Windows, but the underlying SQLite import function was tested. Hosting was not deployed. This is a small beta, not a completed public marketplace or Discord-scale collaboration service. See OWNER-SETUP.md.
+No connection to the user's Neon account was made. No live Render deployment, browser
+interaction test, load test, or recovery of previously deleted data was performed.
 
+## Reproduce
+Local: python -m unittest discover -s tests -q
+JS: node --test tests/workspace.test.cjs tests/sprites.test.cjs
+PostgreSQL: set TRENCOD_TEST_DATABASE_URL to a DISPOSABLE test database, then run
+python tests/run_postgres.py. This runner recreates public schema for every test.
+NEVER point that test variable at your live Neon database.
 
-0.6 validation:
-- Permanent 50–5,000 eligible-TC badges survive spending and restart; gifts, support credits and bonus TP cannot unlock them.
-- Mutual follows, exact friend thresholds, repeat-follow idempotency, and private/public profile field separation.
-- UTC streak rollover and gap reset; best streak retained; concurrent saves award only 50 TP per user/day; unchanged saves award nothing.
-- Repeated publishing and duplicate source copies do not multiply game credits.
-- Comment visibility, text escaping, delete permissions, duplicate-post prevention and report storage.
-- Support program defaults off; budget is debited once, seller credited once, customer licenses are not fabricated, support is excluded from badges.
-- Actual Chromium two-account UI test passed: header opens Profile, Sign out only inside own profile, mutual follow/unfollow, group badge, daily TP after code save, publishing, comments containing HTML rendered as text, public creator profiles, badge category filtering, mobile no horizontal overflow, dark/light theme and successful signout.
-- Desktop and mobile profile screenshots visually inspected.
+## Operational design
+DATABASE_URL selects PostgreSQL. Render refuses startup without it; connection failures
+never fall back to SQLite. Local offline use without DATABASE_URL still uses SQLite.
+PostgreSQL uses transaction-scoped advisory locks to serialize beta writes, preserving
+multi-table sale/coin operations; this is a correctness-first design, not a high-throughput
+scaling claim. Schema and triggers initialize transactionally.
 
-Studio Support is implemented but not enabled or funded in the deliverable. No real purchases or external messages were sent; all flow tests used disposable local databases.
-
-
-0.7 validation — all seven features:
-- Random discovery excludes private games and the previous random selection.
-- Visual scene schema validation, permissions, stale revision rejection, external-code conflict detection, and persistence across initialization.
-- Public-only remix ancestry, with private ancestor titles omitted.
-- Creator-owned playtest requests, author exclusion from self-feedback, report updates and closed-request rejection.
-- Jam entry snapshots, one entry per user/week, no self-votes, idempotent category voting, deadline rejection and closed-week winners.
-- Following-only devlog feed, replies and deletion permissions.
-- Frozen game-listing preview; art listing ownership; concurrent art purchases charge exactly once, credit the seller and preserve the purchased snapshot after unlisting.
-
-Actual Chromium end-to-end UI flow passed for two independent accounts:
-- Drag a player in the visual scene, play with keyboard, collect a coin, save and publish.
-- Random game discovery, another random game without repeating the previous one.
-- Enter the weekly jam, vote from a second account, play its frozen submitted version.
-- Open a playtest request and submit structured player feedback.
-- Create a remix and inspect the two-node family tree.
-- Post a devlog, see it in the follower feed and reply.
-- Preview a saved source listing, list pixel animation, try moving its preview character, buy from the second account and prepare it for insertion into Code.
-- Mobile 390px layout without horizontal overflow; light/dark mode.
-
-No uncaught browser page errors in this flow. Desktop builder, Jam and art-shop screens plus mobile builder were visually inspected. Source syntax checks passed. Windows launcher/picker, actual hosting and live AI/payment integrations remain untested here as previously documented.
-
-0.8 validation:
-- Five added unittest groups cover private play queues, hidden games,
-  idempotent saves, owner-only history, stale restore conflicts, reversible
-  restore, twenty-version retention, migration persistence, guest denial,
-  inbox isolation and a read cutoff that does not swallow later events.
-- Headless Chromium with two separate account sessions passed: description
-  search and type filters, A-Z sort control, private Play later save/list,
-  inbox mark-read, code edit/save, history sandbox preview, JSON download,
-  restore as private draft and preservation of the replaced code.
-- All seven 0.7 browser feature flows passed again against 0.8.
-- Mobile 390px layout has no horizontal overflow; light/dark screenshots
-  inspected. No uncaught JavaScript errors in these browser flows.
-- Windows launcher, external deployment, live AI and payments were not tested.
+Profile exports contain current owned games and personal art/code files plus visual scenes.
+They exclude credentials, other creators' data, team files, wallet records and history;
+they are source exports, not a complete account restore mechanism. Full owner backups
+use pg_dump. Free services still have quotas and hosting sleep behavior.

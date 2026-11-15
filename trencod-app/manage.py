@@ -40,7 +40,17 @@ elif command=='hide-comment' and len(sys.argv)==3:
     with db() as c:c.execute('UPDATE comments SET hidden=1 WHERE id=?',(int(sys.argv[2]),))
     print('Comment hidden.')
 elif command=='backup':
-    import sqlite3,time
+    import sqlite3,time,os,shutil,subprocess
+    if os.environ.get('DATABASE_URL'):
+        if not shutil.which('pg_dump'):raise SystemExit('PostgreSQL backup needs pg_dump. Run this on a trusted computer with PostgreSQL tools installed and DATABASE_URL set privately.')
+        target=Path.cwd()/('trencod-backup-'+time.strftime('%Y%m%d-%H%M%S')+'.dump')
+        env={**os.environ,'PGDATABASE':os.environ['DATABASE_URL']}
+        result=subprocess.run(['pg_dump','--format=custom','--file',str(target)],env=env,capture_output=True)
+        if result.returncode:
+            target.unlink(missing_ok=True)
+            raise SystemExit('Backup failed. Check database access and pg_dump version. No completed backup was saved.')
+        print('PostgreSQL backup saved to',target)
+        raise SystemExit(0)
     target=DATA/('backup-'+time.strftime('%Y%m%d-%H%M%S')+'.sqlite3')
     with db() as source,sqlite3.connect(target) as destination:source.backup(destination)
     print('Backup saved to',target)

@@ -5,6 +5,7 @@ from flask import g, jsonify, request
 
 def schema(c):
     c.executescript('''
+    CREATE TABLE IF NOT EXISTS exclusive_sales(kind TEXT,listing_id TEXT,asset_id TEXT,seller TEXT,buyer TEXT,body TEXT,created REAL,PRIMARY KEY(kind,listing_id),UNIQUE(kind,asset_id));
     CREATE TABLE IF NOT EXISTS milestones(user_id TEXT,day INTEGER,PRIMARY KEY(user_id,day));
     CREATE TABLE IF NOT EXISTS rooms(id TEXT PRIMARY KEY,owner TEXT,name TEXT,invite TEXT UNIQUE,created REAL);
     CREATE TABLE IF NOT EXISTS members(room_id TEXT,user_id TEXT,PRIMARY KEY(room_id,user_id));
@@ -169,8 +170,7 @@ def install(app, core):
         uid=g.user['id'] if g.user else ''
         with db() as c:
             c.execute('BEGIN IMMEDIATE')
-            from community import support_draw
-            support_draw(c)
+            # Automatic support buying is paused for exclusive ownership sales.
             rows=c.execute('SELECT l.id,l.owner,l.project_id,l.title,l.description,l.price,l.credit,u.name AS seller,EXISTS(SELECT 1 FROM licenses x WHERE x.listing_id=l.id AND x.user_id=?) AS owned FROM listings l JOIN users u ON u.id=l.owner WHERE active=1',(uid,)).fetchall()
             owned=c.execute('SELECT listing_id AS id,title,seller,credit,price FROM licenses WHERE user_id=?',(uid,)).fetchall()
         return jsonify(items=[dict(x) for x in rows],owned=[dict(x) for x in owned])
@@ -182,9 +182,13 @@ def install(app, core):
         if type(price)!=int or not 1<=price<=1000000:return fail('Price must be a whole number from 1 to 1,000,000 TC.')
         if type(credit)!=bool:return fail('Choose whether creator credit is required.')
         with db() as c:
+            c.execute('BEGIN IMMEDIATE')
             p=c.execute('SELECT * FROM projects WHERE id=? AND owner=? AND published=1',(pid,g.user['id'])).fetchone()
             if not p:return fail('Publish your own game before listing it.',403)
             if p['parent'] or c.execute('SELECT 1 FROM licensed_projects WHERE project_id=?',(pid,)).fetchone():return fail('Remixes cannot be sold as original code in this beta.',403)
+            old=c.execute('SELECT id FROM listings WHERE project_id=?',(pid,)).fetchone()
+            if old and (c.execute('SELECT 1 FROM licenses WHERE listing_id=?',(old['id'],)).fetchone() or c.execute('SELECT 1 FROM support_purchases WHERE listing_id=?',(old['id'],)).fetchone()):return fail('This game already has buyers. It cannot be sold exclusively.',409)
+            if c.execute('SELECT 1 FROM projects WHERE parent=?',(pid,)).fetchone():return fail('This game already has remixes. It cannot be sold exclusively.',409)
             body=json.dumps({k:p[k] for k in ('html','css','js')});lid=secrets.token_hex(12)
             c.execute('INSERT INTO listings VALUES(?,?,?,?,?,?,?,?,1) ON CONFLICT(project_id) DO UPDATE SET title=excluded.title,description=excluded.description,price=excluded.price,credit=excluded.credit,body=excluded.body,active=1',(lid,g.user['id'],pid,p['title'],p['description'],price,int(credit),body))
         return jsonify(ok=True)
@@ -200,15 +204,31 @@ def install(app, core):
     def market_buy():
         with db() as c:
             c.execute('BEGIN IMMEDIATE')
+            sale=c.execute("SELECT * FROM exclusive_sales WHERE kind='code' AND listing_id=?",(g.data.get('id'),)).fetchone()
+            if sale:
+                if sale['buyer']==g.user['id']:return jsonify(ok=True,id=sale['asset_id'])
+                return fail('Already sold. No coins charged.',409)
             p=c.execute('SELECT l.*,u.name seller FROM listings l JOIN users u ON u.id=l.owner WHERE l.id=? AND active=1',(g.data.get('id'),)).fetchone()
             if not p:return fail('Listing unavailable.',404)
             if p['owner']==g.user['id']:return fail('You already own your game.')
             if c.execute('SELECT 1 FROM licenses WHERE user_id=? AND listing_id=?',(g.user['id'],p['id'])).fetchone():return jsonify(ok=True)
+            asset=c.execute('SELECT * FROM projects WHERE id=? AND owner=?',(p['project_id'],p['owner'])).fetchone()
+            if not asset:return fail('Seller no longer owns this project.',409)
+            if c.execute('SELECT 1 FROM licenses WHERE listing_id=?',(p['id'],)).fetchone():return fail('Legacy listing closed. No coins charged.',409)
+            if c.execute('SELECT COUNT(*) FROM projects WHERE owner=?',(g.user['id'],)).fetchone()[0]>=200:return fail('Project limit reached.',409)
             wallet_init(c,g.user['id']);wallet_init(c,p['owner'])
             if not c.execute('UPDATE wallets SET balance=balance-? WHERE user_id=? AND balance>=?',(p['price'],g.user['id'],p['price'])).rowcount:return fail('Not enough Trencoins.',409)
             c.execute('UPDATE wallets SET balance=balance+? WHERE user_id=?',(p['price'],p['owner']))
             c.execute('INSERT INTO licenses VALUES(?,?,?,?,?,?,?,?)',(g.user['id'],p['id'],p['body'],p['title'],p['seller'],p['credit'],p['price'],time.time()))
-            for uid,amount,reason in [(g.user['id'],-p['price'],'License: '+p['title']),(p['owner'],p['price'],'Sale: '+p['title'])]:
+            body=json.loads(p['body'])
+            if p['credit']:
+                import html as html_escape
+                body['html']+='\n<footer>Original creator: @'+html_escape.escape(p['seller'])+'</footer>'
+            c.execute('UPDATE projects SET owner=?,html=?,css=?,js=?,published=0,updated=? WHERE id=?',(g.user['id'],body['html'],body['css'],body['js'],time.time(),p['project_id']))
+            c.execute('INSERT INTO licensed_projects VALUES(?,?,?)',(p['project_id'],p['id'],g.user['id']))
+            c.execute('UPDATE listings SET active=0 WHERE id=?',(p['id'],))
+            c.execute('INSERT INTO exclusive_sales VALUES(?,?,?,?,?,?,?)',('code',p['id'],p['project_id'],p['owner'],g.user['id'],p['body'],time.time()))
+            for uid,amount,reason in [(g.user['id'],-p['price'],'Exclusive purchase: '+p['title']),(p['owner'],p['price'],'Sale: '+p['title'])]:
                 c.execute('INSERT INTO ledger(user_id,amount,reason,event_key,created) VALUES(?,?,?,?,?)',(uid,amount,reason,'license:'+p['id']+':'+g.user['id'],time.time()))
         return jsonify(ok=True)
 
@@ -227,6 +247,8 @@ def install(app, core):
             c.execute('BEGIN IMMEDIATE')
             r=c.execute('SELECT * FROM licenses WHERE user_id=? AND listing_id=?',(g.user['id'],g.data.get('id'))).fetchone()
             if not r:return fail('Purchase this license first.',403)
+            sale=c.execute("SELECT asset_id FROM exclusive_sales WHERE kind='code' AND listing_id=? AND buyer=?",(r['listing_id'],g.user['id'])).fetchone()
+            if sale:return jsonify(id=sale['asset_id'])
             if c.execute('SELECT COUNT(*) FROM projects WHERE owner=?',(g.user['id'],)).fetchone()[0]>=200:return fail('Project limit reached.')
             body=json.loads(r['body']);pid=secrets.token_hex(12)
             if r['credit']:body['html']+='\n<footer>Original creator: @'+html.escape(r['seller'])+'</footer>'

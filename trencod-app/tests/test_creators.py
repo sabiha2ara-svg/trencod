@@ -44,7 +44,7 @@ class CreatorTests(unittest.TestCase):
    c=server.app.test_client();c.set_cookie('trencod_session',cookie,domain='127.0.0.1');return c.post('/api/market/buy',json={'id':lid,'price':0},base_url=BASE).status_code
   with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:self.assertEqual(list(pool.map(buy,range(4))),[200]*4)
   self.assertEqual(self.get(self.a,'wallet')['balance'],150);self.assertEqual(self.get(self.b,'wallet')['balance'],50)
-  self.post(self.a,'save',{'id':pid,'title':'My game','html':'new','css':'','js':''});self.post(self.a,'market/list',{'project_id':pid,'price':90,'credit':False})
+  self.post(self.a,'save',{'id':pid,'title':'My game','html':'new','css':'','js':''},403);self.post(self.a,'market/list',{'project_id':pid,'price':90,'credit':False},403)
   owned=self.get(self.b,'market/owned/'+lid)['license'];self.assertEqual(owned['body']['html'],'original');self.assertTrue(owned['credit'])
   copy=self.post(self.b,'market/import',{'id':lid})['id'];self.post(self.b,'publish',{'id':copy});self.post(self.b,'market/list',{'project_id':copy,'price':10,'credit':False},403)
   self.post(self.a,'market/unlist',{'id':lid});self.get(self.b,'market/owned/'+lid)

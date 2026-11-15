@@ -1,3 +1,5 @@
+NEON 0.9 UPDATE: For hosted setup, follow NEON-SETUP.txt first. Older SQLite/disk instructions below apply only to local/older installations.
+
 # Trencod ko online kaise laayein
 
 Yeh Python backend wala app hai. Sirf HTML ko static hosting par upload karne se sign-in, wallet aur projects kaam nahi karenge.

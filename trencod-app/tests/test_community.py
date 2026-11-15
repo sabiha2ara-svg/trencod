@@ -76,10 +76,10 @@ class CommunityTests(unittest.TestCase):
   with server.db() as c:
    c.execute('UPDATE support_budget SET enabled=1,balance=80');c.execute('UPDATE projects SET updated=? WHERE id=?',(time.time()-8*86400,p))
   for i in range(3):self.get(self.b,'market')
-  self.assertEqual(self.get(self.a,'wallet')['balance'],150)
+  self.assertEqual(self.get(self.a,'wallet')['balance'],100)
   with server.db() as c:
-   self.assertEqual(c.execute('SELECT balance FROM support_budget').fetchone()[0],30)
-   self.assertEqual(c.execute('SELECT COUNT(*) FROM support_purchases').fetchone()[0],1)
+   self.assertEqual(c.execute('SELECT balance FROM support_budget').fetchone()[0],80)
+   self.assertEqual(c.execute('SELECT COUNT(*) FROM support_purchases').fetchone()[0],0)
    self.assertEqual(c.execute('SELECT COUNT(*) FROM licenses').fetchone()[0],0)
   self.assertNotIn('tc:50',self.earned(self.get(self.a,'profile')))
 if __name__=='__main__':unittest.main(verbosity=2)

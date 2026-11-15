@@ -1,3 +1,5 @@
+NEON 0.9 UPDATE: For hosted setup, follow NEON-SETUP.txt first. Older SQLite/disk instructions below apply only to local/older installations.
+
 TRENCOD 0.8 — CREATOR STUDIO
 
 UPGRADING? KEEP YOUR CREATORS:

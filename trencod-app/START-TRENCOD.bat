@@ -16,7 +16,7 @@ if not exist ".venv\Scripts\python.exe" (
   exit /b 1
 )
 :packages
-.venv\Scripts\python.exe -c "import flask, waitress" >nul 2>nul
+.venv\Scripts\python.exe -c "import flask, waitress, psycopg" >nul 2>nul
 if %errorlevel% neq 0 (
   echo Installing Trencod's web server packages...
   .venv\Scripts\python.exe -m pip install -r requirements.txt

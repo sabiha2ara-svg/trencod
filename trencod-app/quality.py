@@ -3,7 +3,7 @@ import json,time,math
 from flask import g,jsonify
 
 def schema(c):
- c.executescript('''
+ script='''
  CREATE TABLE IF NOT EXISTS play_later(user_id TEXT,project_id TEXT,created REAL,PRIMARY KEY(user_id,project_id));
  CREATE TABLE IF NOT EXISTS inbox_seen(user_id TEXT PRIMARY KEY,seen REAL);
  CREATE TABLE IF NOT EXISTS project_versions(id INTEGER PRIMARY KEY AUTOINCREMENT,project_id TEXT,body TEXT,saved REAL);
@@ -14,7 +14,12 @@ def schema(c):
  INSERT INTO project_versions(project_id,body,saved) VALUES(OLD.id,json_object('title',OLD.title,'description',OLD.description,'html',OLD.html,'css',OLD.css,'js',OLD.js),OLD.updated);
  DELETE FROM project_versions WHERE project_id=OLD.id AND id NOT IN (SELECT id FROM project_versions WHERE project_id=OLD.id ORDER BY id DESC LIMIT 20);
  END;
- ''')
+ '''
+ if getattr(c,'dialect',None)=='postgres':
+  c.executescript(script.split('CREATE TRIGGER')[0])
+  from postgres_schema import history_trigger
+  history_trigger(c)
+ else:c.executescript(script)
 
 def install(app,core):
  db,auth,fail,text=[core[k] for k in ('db','auth','fail','text')]
@@ -87,7 +92,7 @@ def install(app,core):
     ("SELECT u.name||' tested '||p.title message,'playtests/'||p.id link,f.created FROM playtest_feedback f JOIN projects p ON p.id=f.project_id JOIN users u ON u.id=f.user_id WHERE p.owner=? AND p.published=1",(uid,)),
     ("SELECT reason||' · +'||amount||' TC' message,'wallet' link,created FROM ledger WHERE user_id=? AND amount>0 AND reason LIKE 'Sale: %'",(uid,))]
    for sql,args in queries:
-    events.extend(dict(r) for r in c.execute('SELECT * FROM ('+sql+') WHERE created<=? ORDER BY created DESC LIMIT 100',(*args,until)))
+    events.extend(dict(r) for r in c.execute('SELECT * FROM ('+sql+') AS events WHERE created<=? ORDER BY created DESC LIMIT 100',(*args,until)))
   events=sorted(events,key=lambda r:r['created'],reverse=True)[:100]
   return jsonify(events=[dict(e,unread=e['created']>seen) for e in events],unread=sum(e['created']>seen for e in events),until=until)
 

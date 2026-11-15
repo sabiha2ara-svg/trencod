@@ -1,3 +1,5 @@
+NEON 0.9 UPDATE: For hosted setup, follow NEON-SETUP.txt first. Older SQLite/disk instructions below apply only to local/older installations.
+
 # Trencod 0.8: what works and what still needs connecting
 
 Working: accounts; published browser games; private team rooms with invite codes, text chat (three-second polling), owner removal and invite rotation; shared revisioned HTML/CSS/JavaScript files; free 16×16 pixel drawing and up to 16 animation frames; PNG sprite-sheet, editable JSON and animated HTML export; artwork insertion into games; creator source-license sales and seller coin earnings; purchased-version snapshots; bot unlock accounting; account milestone bonuses.
