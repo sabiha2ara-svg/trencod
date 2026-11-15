@@ -1,0 +1,37 @@
+#theme-toggle{font-size:13px;white-space:nowrap;min-width:78px}.header-actions{flex-wrap:wrap;justify-content:flex-end}
+:root[data-theme=light]{color-scheme:light;--bg:#f7f8fd;--panel:#fff;--line:#d8deec;--text:#1b2440;--muted:#55617b;--accent:#7353cc;--mint:#087b71}
+[data-theme=light] header{background:#fff}
+[data-theme=light] button,[data-theme=light] .button{background:#edf0f8;color:#25314c;border-color:#cbd3e4}
+[data-theme=light] .primary{background:#7754d0;color:#fff;border-color:#7754d0}
+[data-theme=light] .badge{background:#ece5fc;color:#5d39a6}
+[data-theme=light] .hero{background:radial-gradient(ellipse at 75% 30%,#e9e1ff,transparent 65%)}
+[data-theme=light] .hero h1 span{color:#7353cc}
+[data-theme=light] .hero-chips span{background:#fff;border-color:#d7ddec;color:#4c5973}
+[data-theme=light] input,[data-theme=light] textarea,[data-theme=light] .filters select{background:#fff;color:#1b2440;border-color:#c6cede}
+[data-theme=light] input::placeholder,[data-theme=light] textarea::placeholder{color:#6b7690}
+[data-theme=light] .code{background:#f9faff;color:#155c56}
+[data-theme=light] .tabs button{background:transparent;color:#55617b}
+[data-theme=light] .tabs button.active{background:#ece5fb;color:#5f36ad}
+[data-theme=light] .cover{background:linear-gradient(135deg,#e0d4fa,#c9e9ee)}
+[data-theme=light] .card:nth-child(3n+2) .cover{background:linear-gradient(135deg,#f4d9e7,#d7e0fa)}
+[data-theme=light] .card:nth-child(3n) .cover{background:linear-gradient(135deg,#cee9df,#e5e9cf)}
+[data-theme=light] .card:hover{border-color:#9d82d6;box-shadow:0 8px 24px #51457812}
+[data-theme=light] .wallet-pill{color:#795300;background:#fff8e4;border-color:#dec585}
+[data-theme=light] .wallet-card{background:radial-gradient(ellipse at top right,#fff1c7,transparent 70%),#fff;border-color:#e1cf9b}
+[data-theme=light] .wallet-card>span{color:#795b13}
+[data-theme=light] .wallet-card>strong{color:#705014}
+[data-theme=light] .notice{background:#f0eafb;border-color:#d4c3ec;color:#4b3375}
+[data-theme=light] .favorite[aria-pressed=true]{color:#a72d65;background:#ffedf5}
+[data-theme=light] dialog:not(.trencod-intro){background:#fff;color:#1b2440;border-color:#cbb9e9;box-shadow:0 20px 70px #1b244033}
+[data-theme=light] dialog::backdrop{background:#1b244066}
+[data-theme=light] .auth-tabs .active{background:#7754d0;color:#fff;border-color:#7754d0}
+[data-theme=light] .error{color:#ab234a}
+[data-theme=light] .text-button{background:transparent}
+[data-theme=light] #toast{background:#45316f;color:#fff;box-shadow:0 10px 35px #34214b33}
+[data-theme=light] a:focus-visible,[data-theme=light] button:focus-visible,[data-theme=light] input:focus-visible,[data-theme=light] textarea:focus-visible{outline-color:#087b71}
+[data-theme=light] .trencod-intro{background:#f7f8fd;color:#1b2440}
+[data-theme=light] .trencod-intro::backdrop{background:#f7f8fd}
+[data-theme=light] .intro-glow{background:radial-gradient(ellipse,#d5c3fc88,transparent 68%)}
+[data-theme=light] .intro-letter:nth-child(n+5){color:#7353cc}
+[data-theme=light] .intro-tagline{color:#58627c}
+@media(max-width:800px){.header-actions{gap:7px}.header-actions #account{max-width:165px}.header-actions #theme-toggle{padding:9px;min-width:65px}.header-actions .wallet-pill{padding:9px;font-size:12px}}

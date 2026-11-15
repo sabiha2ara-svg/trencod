@@ -1,0 +1,63 @@
+TRENCOD + NEON — EASY SETUP (existing Render service)
+
+1. EXTRACT
+Download ZIP > right-click > Extract All.
+Inside is trencod-app. Do not upload the ZIP file itself to GitHub.
+
+2. DATABASE LINK — PRIVATE
+Neon > your Trencod project > Connect > Postgres database.
+Keep production / neondb / neondb_owner and Connection pooling ON.
+Copy the FULL connection URL starting postgresql:// (not psql or a shell command).
+The password must be real, not asterisks. Keep sslmode=require and channel_binding=require.
+Never paste this URL into ChatGPT, public code, GitHub, or a screenshot.
+
+Render > trencod service > Environment > add environment variable:
+Key: DATABASE_URL
+Value: your complete private Neon connection URL
+Save. This variable alone does not upgrade the old SQLite code.
+
+3. UPDATE THE CODE
+GitHub > sabiha2ara-svg/trencod > Code > Add file > Upload files.
+Upload the extracted trencod-app folder at the repository root, replacing matching files.
+Commit changes. Keep exactly this layout:
+trencod-app/server.py
+trencod-app/database.py
+trencod-app/postgres_schema.py
+trencod-app/requirements.txt
+trencod-app/public/index.html
+Do not create trencod-app/trencod-app. Do not upload old data/, .env, passwords or database backups.
+Keep your existing README/LICENSE as-is. No need to delete the repository or service.
+
+4. RENDER SETTINGS
+Root Directory: trencod-app
+Build Command: pip install -r requirements.txt
+Start Command: python server.py --no-browser
+Health Check Path: /healthz
+DATABASE_URL: the private Neon connection URL from step 2.
+TRENCOD_DATA_DIR: not used for hosted PostgreSQL; the old /var/data setting can be removed.
+No paid disk is needed for data stored in Neon. Keep the existing Free service.
+Auto-deploy may start after the GitHub commit. If not, Deploys > Manual Deploy > Deploy latest commit.
+Wait for Live. The app creates its tables automatically on startup.
+If deployment fails, send only the error text with passwords/connection URLs hidden.
+
+5. CHECK SAVED DATA
+Open https://trencod.onrender.com/healthz
+Expected: ok true, version 0.9.0, storage postgres.
+Create a test account, save a test game and artwork, and note the wallet balance.
+Restart/redeploy the service, sign in again and check the same work and balance.
+Only after this real test should you invite more creators.
+
+BACKUP
+Profile > Download my projects saves current owned games and personal artwork as JSON.
+It excludes passwords, sessions, other creators, shared-room files, history and wallet records.
+It is a source backup, not a one-click account restore. Keep separate game HTML/source exports too.
+For a full owner database backup, use trusted PostgreSQL tools (pg_dump) or
+python manage.py backup with DATABASE_URL set privately on a computer with pg_dump installed.
+Download/store full backups away from Render's temporary filesystem.
+
+LIMITS
+Render Free may sleep; Neon does not remove that hosting behavior.
+Neon has free-plan usage limits. Monitor your dashboard and keep independent backups.
+An external database prevents the specific Render local-file loss; it is not a guarantee
+against deletion, account closure, quota issues or mistakes.
+No deleted creator data can be reconstructed from this code ZIP.
