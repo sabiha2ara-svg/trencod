@@ -16,14 +16,14 @@ class CommunityTests(unittest.TestCase):
     c.execute('INSERT OR IGNORE INTO users VALUES(?,?,?,?)',(fid,'Friend'+str(i),'unused','unused'))
     c.execute('INSERT OR IGNORE INTO follows VALUES(?,?,?)',(uid,fid,time.time()));c.execute('INSERT OR IGNORE INTO follows VALUES(?,?,?)',(fid,uid,time.time()))
  def earned(self,r):return {b['key'] for b in r['badges'] if b['earned']}
- def test_coin_badges_exclude_gifts_and_survive_spending(self):
+ def test_coin_badges_removed_without_changing_ledger(self):
   uid=self.uid(self.a);r=self.get(self.a,'profile');self.assertEqual(r['balance'],100);self.assertNotIn('tc:50',self.earned(r))
   with server.db() as c:
    for amount,reason,key in [(5000,'Milestone bonus','fixture-bonus'),(5000,'Trencod Support: demo','fixture-support'),(5000,'Sale: actual game','fixture-sale'),(-5000,'Bought a bot','fixture-spend')]:
     c.execute('INSERT INTO ledger(user_id,amount,reason,event_key,created) VALUES(?,?,?,?,?)',(uid,amount,reason,key,time.time()))
   r=self.get(self.a,'profile');self.assertEqual(r['counts']['tc'],5000);self.assertEqual(r['eligible_balance'],0)
-  self.assertEqual({b for b in self.earned(r) if b.startswith('tc:')},{'tc:'+str(x) for x in [50,100,200,500,1000,2000,5000]})
-  server.init();self.assertIn('tc:5000',self.earned(self.get(self.a,'profile')))
+  self.assertFalse(any(b['category']=='tc' for b in r['badges']))
+  server.init();self.assertFalse(any(b['category']=='tc' for b in self.get(self.a,'profile')['badges']))
  def test_bonus_only_no_badges(self):
   uid=self.uid(self.a)
   with server.db() as c:
@@ -36,8 +36,8 @@ class CommunityTests(unittest.TestCase):
   self.post(self.a,'follow',{'id':b,'follow':True});self.assertEqual(self.get(self.a,'profile')['friends'],0)
   self.post(self.b,'follow',{'id':a,'follow':True});self.assertEqual(self.get(self.a,'profile')['friends'],1)
   self.post(self.a,'follow',{'id':b,'follow':True});self.assertEqual(len(self.get(self.a,'profile')['following']),1)
-  self.circle(5);self.assertIn('friends:6',self.earned(self.get(self.a,'profile')))
-  self.circle(150);r=self.get(self.a,'profile');self.assertTrue({'friends:6','friends:10','friends:40','friends:80','friends:150'}<=self.earned(r))
+  self.circle(5);self.assertIn('friends:5',self.earned(self.get(self.a,'profile')))
+  self.circle(150);r=self.get(self.a,'profile');self.assertTrue({'friends:5','friends:10','friends:40','friends:80','friends:150'}<=self.earned(r))
   public=self.get(self.b,'profile/'+a)
   for key in ('balance','eligible_balance','tp','activity_days','password','salt'):self.assertNotIn(key,public)
   self.post(self.a,'follow',{'id':b,'follow':False});self.assertIn('friends:150',self.earned(self.get(self.a,'profile')))

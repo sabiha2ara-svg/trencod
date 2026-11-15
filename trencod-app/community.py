@@ -4,15 +4,16 @@ from datetime import datetime,timezone,date,timedelta
 from flask import g,jsonify,request
 
 BADGES={
- 'tc':[(50,'First Fifty'),(100,'Century'),(200,'Growing Creator'),(500,'Rising Star'),(1000,'One Thousand'),(2000,'Creator Elite'),(5000,'Five Thousand Club')],
  'streak':[(3,'Finding Your Rhythm'),(7,'One Week'),(14,'Two Weeks'),(30,'Creative Month'),(100,'Hundred Days')],
  'games':[(1,'First Release'),(5,'Game Maker'),(10,'Game Builder'),(25,'Game Collection'),(50,'Game Studio')],
- 'friends':[(6,'First Circle'),(10,'Friendly Creator'),(40,'Big Circle'),(80,'Community Builder'),(150,'Connected Creator')]
+ 'friends':[(5,'First Circle'),(10,'Friendly Creator'),(40,'Big Circle'),(80,'Community Builder'),(150,'Connected Creator')]
 }
+REWARDS={'games':{1:10,5:50,10:100,25:200,50:400},'friends':{5:20,10:40,40:80,80:120,150:200},'streak':{3:5,7:15,14:30,30:60,100:150}}
 def today():return datetime.now(timezone.utc).date()
 def schema(c):
  c.executescript('''
  CREATE TABLE IF NOT EXISTS achievements(user_id TEXT,key TEXT,earned REAL,PRIMARY KEY(user_id,key));
+ CREATE TABLE IF NOT EXISTS achievement_rewards(user_id TEXT,key TEXT,amount INTEGER,created REAL,PRIMARY KEY(user_id,key));
  CREATE TABLE IF NOT EXISTS activity_days(user_id TEXT,day TEXT,PRIMARY KEY(user_id,day));
  CREATE TABLE IF NOT EXISTS tp_rewards(user_id TEXT,day TEXT,amount INTEGER,reason TEXT,PRIMARY KEY(user_id,day));
  CREATE TABLE IF NOT EXISTS credited_games(user_id TEXT,project_id TEXT,code_hash TEXT,PRIMARY KEY(user_id,project_id),UNIQUE(user_id,code_hash));
@@ -38,6 +39,7 @@ def streaks(c,uid):
 
 def activity(c,uid,kind,body,room_id=None):
  if kind=='code' and not any(str(body.get(k,'')).strip() for k in ('html','css','js')):return
+ if kind=='vector' and not body.get('shapes'):return
  if kind=='art' and not any(any(frame) for frame in body['frames']):return
  day=today().isoformat();c.execute('INSERT OR IGNORE INTO activity_days VALUES(?,?)',(uid,day))
  # A creator with six or more mutual friends can earn one daily collaboration bonus.
@@ -65,7 +67,8 @@ def sync(c,uid):
   for amount,name in defs:
    if counts[category]>=amount:c.execute('INSERT OR IGNORE INTO achievements VALUES(?,?,?)',(uid,f'{category}:{amount}',time.time()))
  earned={r['key']:r['earned'] for r in c.execute('SELECT * FROM achievements WHERE user_id=?',(uid,))}
- badges=[dict(key=f'{cat}:{amount}',category=cat,threshold=amount,name=name,earned=earned.get(f'{cat}:{amount}'),progress=min(counts[cat],amount)) for cat,defs in BADGES.items() for amount,name in defs]
+ claimed={r[0] for r in c.execute('SELECT key FROM achievement_rewards WHERE user_id=?',(uid,))}
+ badges=[dict(reward=REWARDS[cat][amount],claimed=f'{cat}:{amount}' in claimed,key=f'{cat}:{amount}',category=cat,threshold=amount,name=name,earned=earned.get(f'{cat}:{amount}'),progress=min(counts[cat],amount)) for cat,defs in BADGES.items() for amount,name in defs]
  return dict(badges=badges,counts=counts,eligible_balance=eligible,streak=current,best_streak=best,activity_days=[d.isoformat() for d in days],tp=c.execute('SELECT COALESCE(SUM(amount),0) FROM tp_rewards WHERE user_id=?',(uid,)).fetchone()[0],reward_today=bool(c.execute('SELECT 1 FROM tp_rewards WHERE user_id=? AND day=?',(uid,today().isoformat())).fetchone()))
 
 def support_draw(c):
@@ -104,6 +107,21 @@ def install(app,core):
     balance=c.execute('SELECT balance FROM wallets WHERE user_id=?',(uid,)).fetchone()
     public.update(data,balance=balance[0] if balance else 0,today=today().isoformat())
   return jsonify(public)
+
+ @app.post('/api/achievements/claim')
+ @auth
+ def claim_achievement():
+  key=text(g.data,'key',40,True)
+  with db() as c:
+   c.execute('BEGIN IMMEDIATE')
+   data=sync(c,g.user['id'])
+   badge=next((b for b in data['badges'] if b['key']==key),None)
+   if not badge or not badge['earned']:return fail('Complete this achievement first.',409)
+   added=c.execute('INSERT OR IGNORE INTO achievement_rewards VALUES(?,?,?,?)',(g.user['id'],key,badge['reward'],time.time())).rowcount
+   if added:
+    c.execute('UPDATE wallets SET balance=balance+? WHERE user_id=?',(badge['reward'],g.user['id']))
+    c.execute('INSERT INTO ledger(user_id,amount,reason,event_key,created) VALUES(?,?,?,?,?)',(g.user['id'],badge['reward'],'Achievement: '+badge['name'],'achievement:'+key,time.time()))
+  return jsonify(ok=True,amount=badge['reward'] if added else 0)
 
  @app.post('/api/follow')
  @auth

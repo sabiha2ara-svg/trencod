@@ -64,7 +64,7 @@ class CreatorTests(unittest.TestCase):
   with patch.dict(os.environ,{'OPENAI_API_KEY':'test-only','TRENCOD_NORMAL_MODEL':'test-model'}):
    self.post(self.a,'bots/ask',{'id':'normal','prompt':'hi'},403)
    with server.db() as c:c.execute('UPDATE wallets SET balance=6000 WHERE user_id=?',(uid,))
-   self.post(self.a,'bots/buy',{'id':'normal'});self.post(self.a,'bots/buy',{'id':'normal'});self.assertEqual(self.get(self.a,'wallet')['balance'],4000)
+   self.post(self.a,'bots/buy',{'id':'normal'});self.post(self.a,'bots/buy',{'id':'normal'});self.assertEqual(self.get(self.a,'wallet')['balance'],5950)
    import io
    with patch('urllib.request.urlopen',return_value=io.BytesIO(json.dumps({'output':[{'content':[{'type':'output_text','text':'Suggested code'}]}]}).encode())) as mock:
     self.assertEqual(self.post(self.a,'bots/ask',{'id':'normal','prompt':'Help me'})['answer'],'Suggested code');self.assertEqual(mock.call_args.args[0].full_url,'https://api.openai.com/v1/responses')

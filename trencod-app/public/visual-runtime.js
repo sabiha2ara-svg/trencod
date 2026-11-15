@@ -1,4 +1,4 @@
-function drawSpritePixels(ctx,o,art,time){const frame=art.frames[Math.floor(time/1000*art.fps)%art.frames.length];for(let i=0;i<256;i++)if(frame[i]){ctx.fillStyle=frame[i];const x=Math.round(o.x+(i%16)*o.w/16),y=Math.round(o.y+Math.floor(i/16)*o.h/16);ctx.fillRect(x,y,Math.ceil(o.w/16),Math.ceil(o.h/16));}}
+function drawSpritePixels(ctx,o,art,time){if(art.type==='vector'){drawVectorSprite(ctx,o,art);return;}const frame=art.frames[Math.floor(time/1000*art.fps)%art.frames.length];for(let i=0;i<256;i++)if(frame[i]){ctx.fillStyle=frame[i];const x=Math.round(o.x+(i%16)*o.w/16),y=Math.round(o.y+Math.floor(i/16)*o.h/16);ctx.fillRect(x,y,Math.ceil(o.w/16),Math.ceil(o.h/16));}}
 (()=>{
  const canvas=document.querySelector('#game'),ctx=canvas.getContext('2d'),status=document.querySelector('#game-status'),keys=new Set();
  const solids=scene.objects.filter(o=>o.type==='platform'),spawn=scene.objects.find(o=>o.type==='player'),goal=scene.objects.find(o=>o.type==='goal');

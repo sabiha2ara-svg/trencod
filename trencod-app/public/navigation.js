@@ -1,0 +1,12 @@
+'use strict';
+function creationTabs(page,id){
+ const projectId=['studio','visual','design'].includes(page)?id:null;
+ const suffix=projectId?'/'+encodeURIComponent(projectId):'';
+ const designing=['design','visual','vector','art'].includes(page);
+ const sub=designing?`<nav class="creation-tabs design-subtabs" aria-label="Design tools"><a href="#visual${page==='visual'?suffix:''}" ${page==='visual'?'aria-current="page"':''}>Visual game</a><a href="#vector" ${page==='vector'?'aria-current="page"':''}>Vector art</a><a href="#art" ${page==='art'?'aria-current="page"':''}>Pixel art & animation</a></nav>`:'';
+ return `<nav class="creation-tabs" aria-label="Creator tools"><a href="#design${suffix}" ${designing?'aria-current="page"':''}>Design</a><a href="#studio${suffix}" ${page==='studio'?'aria-current="page"':''}>Code</a><a href="#python" ${page==='python'?'aria-current="page"':''}>Python</a><a href="#mine">My projects</a></nav>${sub}`;
+}
+async function designHome(id,version){
+ let visual=false;if(id){try{await api('visual/'+encodeURIComponent(id));visual=true;}catch{}if(version!==routeVersion)return;}
+ app.innerHTML=`<span class="eyebrow">DESIGN STUDIO</span><h1>What would you like to design?</h1><p>Every editor is free. AI coaching is optional—you can design, code, run and publish without it.</p>${id?`<section class="creator-panel"><h2>Continue this game</h2><div class="actions"><a class="button primary" href="#studio/${encodeURIComponent(id)}">Open its code</a>${visual?`<a class="button" href="#visual/${encodeURIComponent(id)}">Open its visual design</a>`:''}</div><p class="small">${visual?'Visual and Code views belong to the same game. Visual saves regenerate code; use Save a copy to preserve separate code edits.':'This is a code project. It cannot be automatically converted to a visual scene. You can create a separate visual game below.'}</p></section>`:''}<div class="grid"><article class="creator-panel"><h2>Visual game</h2><p>Place characters and platforms. Drag, test and play.</p><a class="button primary" href="#visual">New visual game</a></article><article class="creator-panel"><h2>Vector drawing</h2><p>Edit shapes, layers and 50 starter sprites.</p><a class="button" href="#vector">Open Vector Studio</a></article><article class="creator-panel"><h2>Pixel & animation</h2><p>Paint your character one pixel at a time.</p><a class="button" href="#art">Open pixel editor</a></article></div>`;
+}

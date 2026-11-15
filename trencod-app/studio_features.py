@@ -1,6 +1,7 @@
 """Creator rooms, revisioned shared files, marketplace and optional AI adapter."""
 import json, secrets, time, os, re, urllib.request, urllib.error
 from datetime import datetime, timezone
+from ai_coach import COACHES, instructions, teaching_answer
 from flask import g, jsonify, request
 
 def schema(c):
@@ -28,6 +29,9 @@ def install(app, core):
         if kind=='code':
             if not isinstance(body,dict):raise ValueError('Code must contain HTML, CSS and JavaScript.')
             return kind,json.dumps({k:text(body,k,150000) for k in ('html','css','js')})
+        if kind=='vector':
+            from vectors import validate_vector
+            return kind,json.dumps(validate_vector(body))
         if kind=='art':
             if not isinstance(body,dict):raise ValueError('Invalid animation.')
             frames=body.get('frames');fps=body.get('fps')
@@ -36,7 +40,12 @@ def install(app, core):
             for frame in frames:
                 if not isinstance(frame,list) or len(frame)!=256 or any(not isinstance(x,str) or not re.fullmatch(r'#[a-fA-F0-9]{6}|',x) for x in frame):raise ValueError('Use a 16 × 16 pixel frame with hex colors.')
             return kind,json.dumps({'frames':frames,'fps':fps})
-        raise ValueError('Choose code or pixel art.')
+        raise ValueError('Choose code, vector or pixel art.')
+
+    @app.post('/api/vector/validate')
+    def vector_validate():
+        from vectors import validate_vector
+        return jsonify(body=validate_vector(g.data.get('body')))
 
     @app.get('/api/milestones')
     @auth
@@ -258,7 +267,7 @@ def install(app, core):
 
     def bots():
         key=os.environ.get('OPENAI_API_KEY','')
-        return [dict(id=k,name=n,price=p,ready=bool(key and os.environ.get(env)),model=os.environ.get(env,'')) for k,n,p,env in [('normal','Normal Bot',2000,'TRENCOD_NORMAL_MODEL'),('smart','Smart Bot',5000,'TRENCOD_SMART_MODEL')]]
+        return [dict(id=k,name=COACHES[k]['label'],description=COACHES[k]['description'],price=p,ready=bool(key and os.environ.get(env)),model=os.environ.get(env,'')) for k,n,p,env in [('normal','Normal Bot',50,'TRENCOD_NORMAL_MODEL'),('smart','Smart Bot',150,'TRENCOD_SMART_MODEL')]]
 
     @app.get('/api/bots')
     def bot_list():
@@ -288,11 +297,11 @@ def install(app, core):
             if not c.execute('SELECT 1 FROM bot_licenses WHERE user_id=? AND bot=?',(g.user['id'],b['id'])).fetchone():return fail('Unlock this bot in the shop first.',403)
         today=datetime.now(timezone.utc).strftime('%Y-%m-%d')
         if limited('ai:'+g.user['id']+':'+today,20,86400):return fail('Daily beta limit reached: 20 requests across your bots.',429)
-        payload={'model':b['model'],'store':False,'max_output_tokens':3000,'instructions':'You help Trencod creators write HTML/CSS/JavaScript games and design pixel art. Explain clearly. Never claim you saved, published or changed files. Return suggested code for review. Do not request passwords or personal information.','input':prompt}
+        payload={'model':b['model'],'store':False,'max_output_tokens':COACHES[b['id']]['tokens'],'instructions':instructions(b['id']),'input':prompt}
         req=urllib.request.Request('https://api.openai.com/v1/responses',data=json.dumps(payload).encode(),headers={'Authorization':'Bearer '+os.environ['OPENAI_API_KEY'],'Content-Type':'application/json'})
         try:
             with urllib.request.urlopen(req,timeout=15) as response:r=json.load(response)
             answer='\n'.join(part.get('text',part.get('refusal','')) for item in r.get('output',[]) for part in item.get('content',[]) if part.get('type') in ('output_text','refusal'))
             if not answer:return fail('AI returned no text. Try a shorter question.',502)
-            return jsonify(answer=answer)
+            return jsonify(answer=teaching_answer(answer,b['id']))
         except (urllib.error.URLError,TimeoutError,ValueError):return fail('AI provider unavailable or its configuration needs attention. Your work has not changed.',502)

@@ -31,6 +31,9 @@ def validate_scene(s):
  normalized={}
  for sid,art in sprites.items():
   if not isinstance(sid,str) or not re.fullmatch(r'[a-zA-Z0-9_-]{1,80}',sid) or not isinstance(art,dict):raise ValueError('Invalid sprite.')
+  if art.get('type')=='vector':
+   from vectors import validate_vector
+   normalized[sid]=validate_vector(art);continue
   frames=art.get('frames');fps=art.get('fps');name=art.get('name','Sprite')
   if not isinstance(name,str) or len(name)>80:raise ValueError('Sprite name must be under 80 characters.')
   if type(fps) is not int or not 1<=fps<=24:raise ValueError('Sprite FPS must be 1–24.')
@@ -72,7 +75,7 @@ def install(app,core):
  def generate(s):
   return {'html':'<h1 id="game-title">Pixel Quest</h1><p id="game-status">Collect all coins, avoid enemies, then reach the flag.</p><canvas id="game" width="800" height="450" tabindex="0" aria-label="Platform game"></canvas><div class="controls"><button id="left">◀</button><button id="jump">Jump</button><button id="right">▶</button><button id="reset">Restart</button></div><p>Arrow keys / A D to move · Space / W to jump</p>',
    'css':'body{margin:0;background:#0c1427;color:#ecf5ff;font:16px system-ui;text-align:center}h1{font-size:22px}canvas{display:block;max-width:100%;height:auto;margin:auto;background:#16243e;touch-action:none}.controls{display:flex;justify-content:center;gap:12px;margin:15px}button{background:#a99bff;color:#17112e;border:0;border-radius:12px;padding:14px 25px;font:inherit;touch-action:none}',
-   'js':'const scene='+json.dumps(s)+';\n'+(core['PUBLIC']/'visual-runtime.js').read_text()}
+   'js':'const scene='+json.dumps(s)+';\n'+((core['PUBLIC']/'vector-core.js').read_text()+'\n' if any(a.get('type')=='vector' for a in s.get('sprites',{}).values()) else '')+(core['PUBLIC']/'visual-runtime.js').read_text().replace("if(art.type==='vector'){drawVectorSprite(ctx,o,art);return;}","if(art.type==='vector'){drawVectorSprite(ctx,o,art);return;}" if any(a.get('type')=='vector' for a in s.get('sprites',{}).values()) else '')}
 
  @app.get('/api/discover/random')
  def random_game():
