@@ -1,6 +1,8 @@
-# Trencod 0.11.1 — Learning-first editor
+# Trencod 0.12.1 — Learning-first editor
 
 ## Changes
+- Hold Shift while dragging Ellipse/Rectangle to draw a circle/square. Shift during movement constrains to the dominant horizontal/vertical axis.
+- Copy answer and AI settings now use separate full-width rows with clear spacing in the AI sidebar.
 - Normal (50 TC): one hint, a simple explanation, at most 8 example lines.
 - Smart (150 TC): existing-code debugging, reasoning and test suggestions, at most 20 example lines.
 - Both are tutors: no automatic file edits, upload or publish actions. Model instructions and a response guard discourage whole-app answers; this is not an absolute guarantee about model output. Existing purchases remain valid. Configured AI credentials/models are still required; all manual editors remain free.
@@ -14,7 +16,7 @@
 1. Download your current source backup before replacing files.
 2. Extract the ZIP. Upload/replace its trencod-app folder at the existing GitHub repository root. Do not create trencod-app/trencod-app.
 3. Commit and deploy the latest commit on Render. Keep the same Neon DATABASE_URL and existing environment settings. Never upload your .env or database credentials to GitHub.
-4. Hard refresh the site. /healthz should report version 0.11.1 and storage postgres.
+4. Hard refresh the site. /healthz should report version 0.12.1 and storage postgres.
 
 ## Browser check after deployment
 - At desktop and narrow phone widths, open Code and confirm buttons wrap without overlap. Maximize, Run, Save, then Restore.
