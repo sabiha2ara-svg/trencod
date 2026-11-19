@@ -33,7 +33,7 @@ class VectorRewardTests(unittest.TestCase):
  def test_fifty_library_sprites_validate(self):
   code="const fs=require('fs'),vm=require('vm');vm.runInThisContext(fs.readFileSync('public/vector-core.js','utf8'));console.log(JSON.stringify(vectorLibrary()))"
   library=json.loads(subprocess.check_output(['node','-e',code],text=True))
-  self.assertEqual(len(library),50);self.assertEqual(len({x['name'] for x in library}),50)
+  self.assertEqual(len(library),106);self.assertEqual(len({x['name'] for x in library}),106)
   for art in library:self.assertTrue(validate_vector(art)['shapes'])
  def test_badge_claim_requirements_atomic_once_and_migration(self):
   self.post(self.a,'achievements/claim',{'key':'games:5'},409)

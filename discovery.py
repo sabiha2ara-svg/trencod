@@ -25,6 +25,13 @@ def week(c):
 def validate_scene(s):
  if not isinstance(s,dict):raise ValueError('Invalid scene.')
  out={}
+ if s.get('background') is not None:
+  bg=s['background']
+  if not isinstance(bg,dict) or bg.get('theme') not in {'night','meadow','desert','snow','sunset','space','solid'}:raise ValueError('Choose a supported background style.')
+  out['background']={'theme':bg['theme']}
+  if 'color' in bg:
+   if not isinstance(bg['color'],str) or not re.fullmatch(r'#[0-9a-fA-F]{6}',bg['color']):raise ValueError('Use a six-digit background color.')
+   out['background']['color']=bg['color']
  sprites=s.get('sprites',{})
  if not isinstance(sprites,dict) or len(sprites)>32:raise ValueError('Use up to 32 sprite designs.')
  if len(json.dumps(sprites))>100000:raise ValueError('Sprite artwork must stay below 100 KB. Use fewer animation frames.')
@@ -47,7 +54,7 @@ def validate_scene(s):
   v=s.get(k)
   if type(v) not in (int,float) or not math.isfinite(v) or not lo<=v<=hi:raise ValueError(f'{k} must be {lo}–{hi}.')
   out[k]=v
- ents=s.get('objects');types={'player','platform','coin','enemy','goal'}
+ ents=s.get('objects');types={'player','platform','coin','enemy','goal','pet','decoration'}
  if not isinstance(ents,list) or not 2<=len(ents)<=100:raise ValueError('Use 2–100 objects.')
  clean=[]
  for e in ents:
@@ -61,9 +68,21 @@ def validate_scene(s):
   if e.get('sprite') is not None:
    if not isinstance(e['sprite'],str) or e['sprite'] not in normalized:raise ValueError('Object sprite was not found.')
    row['sprite']=e['sprite']
+  allowed_moves={'enemy':{'chase','patrol','still'},'pet':{'follow','still'},'decoration':{'still','patrol'}}
+  if 'movement' in e:
+   if not isinstance(e['movement'],str) or e['movement'] not in allowed_moves.get(e['type'],set()):raise ValueError('Movement does not match the sprite role.')
+   row['movement']=e['movement']
+  if 'move_speed' in e:
+   v=e['move_speed']
+   if e['type'] not in allowed_moves or type(v) not in (int,float) or not math.isfinite(v) or not 0<=v<=400:raise ValueError('Sprite movement speed must be 0–400.')
+   row['move_speed']=v
   clean.append(row)
  if sum(x['type']=='player' for x in clean)!=1 or sum(x['type']=='goal' for x in clean)!=1:raise ValueError('Keep exactly one player and one finish point.')
- out['objects']=clean;return out
+ out['objects']=clean
+ from music import validate_music
+ music=validate_music(s.get('music'))
+ if music:out['music']=music
+ return out
 
 def install(app,core):
  db,auth,fail,text,limited=[core[k] for k in ('db','auth','fail','text','limited')]
@@ -73,7 +92,11 @@ def install(app,core):
  def owned(c,pid,published=False):
   return c.execute('SELECT * FROM projects WHERE id=? AND owner=?'+(' AND published=1' if published else ''),(pid,g.user['id'])).fetchone()
  def generate(s):
-  return {'html':'<h1 id="game-title">Pixel Quest</h1><p id="game-status">Collect all coins, avoid enemies, then reach the flag.</p><canvas id="game" width="800" height="450" tabindex="0" aria-label="Platform game"></canvas><div class="controls"><button id="left">◀</button><button id="jump">Jump</button><button id="right">▶</button><button id="reset">Restart</button></div><p>Arrow keys / A D to move · Space / W to jump</p>',
+  from music import music_markup
+  if s.get('music'):
+   with db() as c:
+    if not c.execute('SELECT 1 FROM music_clips WHERE id=?',(s['music']['id'],)).fetchone():raise ValueError('Music clip not found. Choose another clip.')
+  return {'html':'<h1 id="game-title">Pixel Quest</h1><p id="game-status">Collect all coins, avoid enemies, then reach the flag.</p><canvas id="game" width="800" height="450" tabindex="0" aria-label="Platform game"></canvas><div class="controls"><button id="left">◀</button><button id="jump">Jump</button><button id="right">▶</button><button id="reset">Restart</button></div><p>Arrow keys / A D to move · Space / W to jump</p>'+music_markup(s.get('music'),core['PUBLIC_URL'] or request.url_root),
    'css':'body{margin:0;background:#0c1427;color:#ecf5ff;font:16px system-ui;text-align:center}h1{font-size:22px}canvas{display:block;max-width:100%;height:auto;margin:auto;background:#16243e;touch-action:none}.controls{display:flex;justify-content:center;gap:12px;margin:15px}button{background:#a99bff;color:#17112e;border:0;border-radius:12px;padding:14px 25px;font:inherit;touch-action:none}',
    'js':'const scene='+json.dumps(s)+';\n'+((core['PUBLIC']/'vector-core.js').read_text()+'\n' if any(a.get('type')=='vector' for a in s.get('sprites',{}).values()) else '')+(core['PUBLIC']/'visual-runtime.js').read_text().replace("if(art.type==='vector'){drawVectorSprite(ctx,o,art);return;}","if(art.type==='vector'){drawVectorSprite(ctx,o,art);return;}" if any(a.get('type')=='vector' for a in s.get('sprites',{}).values()) else '')}
 

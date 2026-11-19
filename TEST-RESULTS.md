@@ -39,3 +39,11 @@ DELETES its public schema for each test. NEVER use production DATABASE_URL there
   visible Save, same-project navigation passed with LinkeDOM.
 - Normal/Smart budgets and full-HTML response rejection tested.
 - Full browser layout and actual browser Python execution remain unverified here.
+
+## 0.12.0 My projects + music validation
+- Full Python integration suite: 67 SQLite tests passed; 66 passed on a disposable real PostgreSQL database (one SQLite-specific copy test excluded).
+- New coverage: audio upload/auth/type/size/quota checks, public playback bytes and HTTP Range, persistence after schema initialization, account-backup audio inclusion, art + scene music round trips, publish access, invalid music settings, creation classifications, private and team membership access.
+- Node tests: music source-tree compile/reopen, replacement/removal without duplicate audio, malicious settings rejection; existing workspace, sprites, vector and Python tests passed.
+- DOM tests (LinkeDOM with mocked canvas/audio): draw, duplicate frame, attach music, Play/Pause calls, save animation, My projects thumbnail and filter, reopen animation, export playback markup, quick pixel drawer account save. Existing vector editor and code/Python editor DOM tests passed.
+- Native browser layout, actual speaker output and real-browser codec decoding could not be exercised here. Audio formats/codecs must be supported by the user's browser. Audio headers are checked, but malformed audio may still fail playback and display an error.
+- No live Render deploy or production Neon modification was performed.

@@ -10,8 +10,18 @@ test('Practice iframe escapes source, worker runs selected path, Stop terminates
  const code=html.match(/<script>([\s\S]*)<\/script>/)[1];let source,worker,posted,timeout;
  const elements={out:{textContent:''},state:{textContent:''},stop:{}};
  const c={document:{getElementById:id=>elements[id]},window:{addEventListener(){}},Blob:class{constructor(parts){source=parts[0]}},URL:{createObjectURL:()=> 'blob:test',revokeObjectURL(){}},Worker:class{constructor(){worker=this}postMessage(data){posted=data}terminate(){this.stopped=true}},setTimeout:(f)=>{timeout=f;return 1},clearTimeout(){}};
- vm.runInNewContext(code,c);A.deepEqual(JSON.parse(JSON.stringify(posted)),{files:state.files.slice(1),active:'main.py'});
- let run,paths=[],messages=[];const py={setStdin(){},FS:{mkdirTree(){},writeFile:(p,t)=>paths.push(p)},globals:{set(){}},runPythonAsync:async s=>{run=s}};
+ vm.runInNewContext(code,c);A.deepEqual(JSON.parse(JSON.stringify(posted)),{files:state.files.slice(1),active:'main.py',input:''});
+ let run,paths=[],messages=[];const py={loadPackagesFromImports:async()=>{},setStdin(){},FS:{mkdirTree(){},writeFile:(p,t)=>paths.push(p)},globals:{set(){}},runPythonAsync:async s=>{run=s}};
  const wc={importScripts(){},loadPyodide:async()=>py,postMessage:m=>messages.push(m)};vm.runInNewContext(source,wc);await wc.onmessage({data:posted});A.match(run,/runpy.run_path/);A.ok(paths.includes('/home/pyodide/helpers/math.py'));A.ok(messages.some(x=>x.done));
  worker.onmessage({data:{text:'My score: 5'}});A.match(elements.out.textContent,/My score: 5/);elements.stop.onclick();A.equal(worker.stopped,true);
+});
+
+test('Python includes data resources, input queue, root imports and package loading',async()=>{
+ const sourceState={files:[{path:'scripts/main.py',text:'import json\nprint(input())'},{path:'settings.json',text:'{}'},{path:'notes.txt',text:'hello'}]};
+ const html=preview(sourceState,'scripts/main.py','Saaiq\n12');let source,posted;
+ const c={document:{getElementById:()=>({})},window:{addEventListener(){}},Blob:class{constructor(p){source=p[0]}},URL:{createObjectURL:()=>'',revokeObjectURL(){}},Worker:class{postMessage(d){posted=d}},setTimeout(){},clearTimeout(){}};
+ vm.runInNewContext(html.match(/<script>([\s\S]*)<\/script>/)[1],c);
+ let stdin,run,packages,written=[];const py={setStdin:x=>stdin=x.stdin,loadPackagesFromImports:async s=>packages=s,FS:{mkdirTree(){},writeFile:(p)=>written.push(p)},globals:{set(){}},runPythonAsync:async s=>run=s};
+ const wc={importScripts(){},loadPyodide:async()=>py,postMessage(){}};vm.runInNewContext(source,wc);await wc.onmessage({data:posted});
+ A.equal(stdin(),'Saaiq');A.equal(stdin(),'12');A.equal(stdin(),null);A.match(run,/os.chdir/);A.match(run,/sys.path.insert\(0, "\/home\/pyodide"\)/);A.match(packages,/import json/);A.ok(written.includes('/home/pyodide/settings.json'));
 });

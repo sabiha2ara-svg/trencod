@@ -1,8 +1,14 @@
-TRENCOD 0.11.1 — CODING COACH & EDITOR UPDATE
+TRENCOD 0.14.1 — MY PROJECTS + MUSIC UPDATE
 
 Saaiq: EDITOR-UPDATE.md mein naye update ke steps aur limitations hain.
 
 Naya:
+- Search appearance: descriptive title, meta description, Trencod site-name structured data, and real initial homepage text.
+- My projects: games, pixel art, animation and vector art together, with filters and previews.
+- Pixel/animation/vector: Save to My projects and direct View My projects link.
+- Code editor quick Pixel drawer can also save editable art to your account.
+- Music upload, volume, loop: animation, Code game and Visual game. No AI API needed.
+- MUSIC-AND-PROJECTS.md has the exact steps and clip limits.
 - Normal hint coach / Smart debug coach: learner writes the code. No automatic edits or publishing.
 - Design, Code and Python tabs; Pixel and Vector inside Design.
 - File type icons and wrapping toolbars; Run/Save remain available in maximized editor.
@@ -16,7 +22,7 @@ Naya:
 Abhi tumhara Neon connected hai: wahi DATABASE_URL rehne do.
 ZIP extract karo > trencod-app ko existing GitHub root par upload/replace karo
 > commit > Render latest commit deploy > Ctrl+Shift+R.
-/healthz mein version 0.11.1, storage postgres hona chahiye.
+/healthz mein version 0.14.1, storage postgres hona chahiye.
 
 ZIP download se live site apne aap update nahi hoti.
 Profile > Download my projects se backup rakho. Database kabhi delete/reset mat karo.

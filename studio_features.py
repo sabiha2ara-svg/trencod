@@ -11,6 +11,7 @@ def schema(c):
     CREATE TABLE IF NOT EXISTS rooms(id TEXT PRIMARY KEY,owner TEXT,name TEXT,invite TEXT UNIQUE,created REAL);
     CREATE TABLE IF NOT EXISTS members(room_id TEXT,user_id TEXT,PRIMARY KEY(room_id,user_id));
     CREATE TABLE IF NOT EXISTS messages(id INTEGER PRIMARY KEY,room_id TEXT,user_id TEXT,body TEXT,created REAL);
+    CREATE TABLE IF NOT EXISTS music_clips(id TEXT PRIMARY KEY,owner TEXT,name TEXT,mime TEXT,size INTEGER,body TEXT,created REAL);
     CREATE TABLE IF NOT EXISTS studio_files(id TEXT PRIMARY KEY,room_id TEXT,owner TEXT,name TEXT,kind TEXT,body TEXT,revision INTEGER,updated REAL);
     CREATE TABLE IF NOT EXISTS listings(id TEXT PRIMARY KEY,owner TEXT,project_id TEXT UNIQUE,title TEXT,description TEXT,price INTEGER,credit INTEGER,body TEXT,active INTEGER DEFAULT 1);
     CREATE TABLE IF NOT EXISTS licenses(user_id TEXT,listing_id TEXT,body TEXT,title TEXT,seller TEXT,credit INTEGER,price INTEGER,created REAL,PRIMARY KEY(user_id,listing_id));
@@ -39,7 +40,14 @@ def install(app, core):
             if not isinstance(frames,list) or not 1<=len(frames)<=16:raise ValueError('Use 1–16 frames.')
             for frame in frames:
                 if not isinstance(frame,list) or len(frame)!=256 or any(not isinstance(x,str) or not re.fullmatch(r'#[a-fA-F0-9]{6}|',x) for x in frame):raise ValueError('Use a 16 × 16 pixel frame with hex colors.')
-            return kind,json.dumps({'frames':frames,'fps':fps})
+            out={'frames':frames,'fps':fps}
+            from music import validate_music
+            music=validate_music(body.get('music'))
+            if music:
+                with db() as c:
+                    if not c.execute('SELECT 1 FROM music_clips WHERE id=?',(music['id'],)).fetchone():raise ValueError('Music clip not found. Upload it again or remove it.')
+                out['music']=music
+            return kind,json.dumps(out)
         raise ValueError('Choose code, vector or pixel art.')
 
     @app.post('/api/vector/validate')
@@ -135,6 +143,19 @@ def install(app, core):
                 c.execute('UPDATE rooms SET invite=? WHERE id=?',(secrets.token_urlsafe(18),rid))
             else:return fail('Unknown action.')
         return jsonify(ok=True)
+
+    @app.get('/api/creations')
+    @auth
+    def creations():
+        with db() as c:
+            rows=c.execute("SELECT f.id,f.name,f.kind,f.revision,f.updated,f.room_id,f.body,r.name AS room_name FROM studio_files f LEFT JOIN rooms r ON r.id=f.room_id WHERE (f.room_id IS NULL AND f.owner=?) OR f.room_id IN (SELECT room_id FROM members WHERE user_id=?) ORDER BY f.updated DESC",(g.user['id'],g.user['id'])).fetchall()
+        items=[]
+        for row in rows:
+            item=dict(row);body=json.loads(item.pop('body'))
+            item['category']='vector' if item['kind']=='vector' else ('animation' if len(body.get('frames',[]))>1 else 'pixel') if item['kind']=='art' else 'code'
+            item['frame_count']=len(body.get('frames',[]))
+            items.append(item)
+        return jsonify(creations=items)
 
     @app.get('/api/files')
     @auth
