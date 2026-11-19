@@ -1,4 +1,4 @@
-TRENCOD 0.14.1 — MY PROJECTS + MUSIC UPDATE
+TRENCOD 0.14.2 — MY PROJECTS + MUSIC UPDATE
 
 Saaiq: EDITOR-UPDATE.md mein naye update ke steps aur limitations hain.
 
@@ -22,7 +22,7 @@ Naya:
 Abhi tumhara Neon connected hai: wahi DATABASE_URL rehne do.
 ZIP extract karo > trencod-app ko existing GitHub root par upload/replace karo
 > commit > Render latest commit deploy > Ctrl+Shift+R.
-/healthz mein version 0.14.1, storage postgres hona chahiye.
+/healthz mein version 0.14.2, storage postgres hona chahiye.
 
 ZIP download se live site apne aap update nahi hoti.
 Profile > Download my projects se backup rakho. Database kabhi delete/reset mat karo.

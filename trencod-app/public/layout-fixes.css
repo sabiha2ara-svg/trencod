@@ -40,3 +40,5 @@ button,.button{line-height:1.4;max-width:100%;white-space:normal;overflow-wrap:a
  .vector-max{margin:0;padding:12px}.vector-workbench aside label{flex:1 1 100px}.sprite-library-grid,.vector-library{grid-template-columns:repeat(auto-fill,minmax(90px,1fr));gap:8px}
  dialog,.game-preview-dialog,.animation-picker,.music-dialog{max-height:90dvh;overflow:auto;padding:16px}dialog h2{font-size:24px}.project-filters label{min-width:0;flex:1 1 160px}.creator-panel{padding:14px}.coordinate-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+.code-find-panel{padding:14px;border-bottom:1px solid var(--line);background:var(--panel);display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}.code-find-panel[hidden]{display:none}.code-find-panel>p,.code-find-panel>.actions{grid-column:1/-1;margin:0}.code-find-panel label{min-width:0}.code-find-panel input{margin-top:5px}.code-find-panel button{min-height:44px}@media(max-width:750px){.code-find-panel{grid-template-columns:minmax(0,1fr)}.code-find-panel .actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.code-find-panel button{padding:8px;font-size:13px}}
