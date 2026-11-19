@@ -1,0 +1,6 @@
+const test=require('node:test'),A=require('node:assert/strict'),fs=require('fs'),vm=require('vm');
+test('bitmap and vector export run as independent canvas drawing helpers',()=>{
+ const c={crypto:require('crypto').webcrypto,encodeURIComponent,spriteSheet:()=> 'data:image/png;base64,AAAA',artMarkup:()=>'<div>bitmap animation</div>'};vm.createContext(c);for(const file of ['vector-core.js','sprites.js'])vm.runInContext(fs.readFileSync('public/'+file,'utf8'),c);
+ c.art={name:'test',fps:2,frames:[Array(256).fill(null),Array(256).fill('#ffffff')]};A.match(vm.runInContext('visualSpriteCode(art)',c),/bitmap animation/);
+ for(const vector of [false,true]){if(vector)c.art=vm.runInContext('vectorLibrary()[80]',c);const js=vm.runInContext('visualSpriteCode(art,"canvas")',c),name=js.match(/const (sprite_\w+)/)[1];let draws=[];const runtime={Image:class{constructor(){this.complete=true;this.naturalWidth=vector?256:32;this.naturalHeight=vector?256:16;}},ctx:{save(){},restore(){},drawImage(...args){draws.push(args)}}};vm.createContext(runtime);vm.runInContext(js+'\n'+name+'.draw(ctx,10,20,64,64,600)',runtime);A.equal(draws.length,1);A.deepEqual(draws[0].slice(5),[10,20,64,64]);if(!vector)A.equal(draws[0][1],16);else A.match(vm.runInContext('visualSpriteCode(art)',c),/^<svg/);}
+});

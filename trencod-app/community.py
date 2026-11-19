@@ -140,8 +140,9 @@ def install(app,core):
 
  @app.get('/api/creators')
  def creators():
-  q=request.args.get('q','').strip()[:24]
-  with db() as c:rows=c.execute('SELECT id,name FROM users WHERE name LIKE ? ORDER BY name LIMIT 40',('%'+q+'%',)).fetchall()
+  q=request.args.get('q','').strip().lstrip('@')[:24].lower()
+  q=q.replace('!', '!!').replace('%', '!%').replace('_', '!_')
+  with db() as c:rows=c.execute("SELECT id,name FROM users WHERE LOWER(name) LIKE ? ESCAPE '!' ORDER BY name LIMIT 40",('%'+q+'%',)).fetchall()
   return jsonify(creators=[dict(x) for x in rows])
 
  @app.get('/api/comments/<pid>')

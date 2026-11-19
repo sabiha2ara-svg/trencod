@@ -25,6 +25,13 @@ def week(c):
 def validate_scene(s):
  if not isinstance(s,dict):raise ValueError('Invalid scene.')
  out={}
+ if s.get('background') is not None:
+  bg=s['background']
+  if not isinstance(bg,dict) or bg.get('theme') not in {'night','meadow','desert','snow','sunset','space','solid'}:raise ValueError('Choose a supported background style.')
+  out['background']={'theme':bg['theme']}
+  if 'color' in bg:
+   if not isinstance(bg['color'],str) or not re.fullmatch(r'#[0-9a-fA-F]{6}',bg['color']):raise ValueError('Use a six-digit background color.')
+   out['background']['color']=bg['color']
  sprites=s.get('sprites',{})
  if not isinstance(sprites,dict) or len(sprites)>32:raise ValueError('Use up to 32 sprite designs.')
  if len(json.dumps(sprites))>100000:raise ValueError('Sprite artwork must stay below 100 KB. Use fewer animation frames.')
@@ -47,7 +54,7 @@ def validate_scene(s):
   v=s.get(k)
   if type(v) not in (int,float) or not math.isfinite(v) or not lo<=v<=hi:raise ValueError(f'{k} must be {lo}–{hi}.')
   out[k]=v
- ents=s.get('objects');types={'player','platform','coin','enemy','goal'}
+ ents=s.get('objects');types={'player','platform','coin','enemy','goal','pet','decoration'}
  if not isinstance(ents,list) or not 2<=len(ents)<=100:raise ValueError('Use 2–100 objects.')
  clean=[]
  for e in ents:
@@ -61,6 +68,14 @@ def validate_scene(s):
   if e.get('sprite') is not None:
    if not isinstance(e['sprite'],str) or e['sprite'] not in normalized:raise ValueError('Object sprite was not found.')
    row['sprite']=e['sprite']
+  allowed_moves={'enemy':{'chase','patrol','still'},'pet':{'follow','still'},'decoration':{'still','patrol'}}
+  if 'movement' in e:
+   if not isinstance(e['movement'],str) or e['movement'] not in allowed_moves.get(e['type'],set()):raise ValueError('Movement does not match the sprite role.')
+   row['movement']=e['movement']
+  if 'move_speed' in e:
+   v=e['move_speed']
+   if e['type'] not in allowed_moves or type(v) not in (int,float) or not math.isfinite(v) or not 0<=v<=400:raise ValueError('Sprite movement speed must be 0–400.')
+   row['move_speed']=v
   clean.append(row)
  if sum(x['type']=='player' for x in clean)!=1 or sum(x['type']=='goal' for x in clean)!=1:raise ValueError('Keep exactly one player and one finish point.')
  out['objects']=clean

@@ -149,7 +149,7 @@ def health():
     try:
         with db() as c:c.execute('SELECT 1').fetchone()
     except Exception:return jsonify(ok=False,error='Database unavailable'),503
-    return jsonify(ok=True,version='0.12.1',storage='postgres' if os.environ.get('DATABASE_URL') else 'local-sqlite')
+    return jsonify(ok=True,version='0.14.1',storage='postgres' if os.environ.get('DATABASE_URL') else 'local-sqlite')
 @app.get('/api/me')
 def me():return jsonify(user=g.user)
 @app.get('/api/my-backup')

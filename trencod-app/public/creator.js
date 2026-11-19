@@ -1,7 +1,7 @@
 'use strict';
 let studioTimer=null,artRoom=null,sharedCode=null;
 window.creatorCleanup=()=>{clearInterval(studioTimer);studioTimer=null;};
-const creatorNav=()=>'<div class="actions"><a class="button" href="#hub">Team Studios</a><a class="button" href="#studio">Code editor</a><a class="button" href="#art">Pixel & animation</a><a class="button" href="#vector">Vector Studio · 50 sprites</a><a class="button" href="#bots">AI assistant</a><a class="button" href="#shop">Creator Market</a><a class="button" href="#visual">Visual builder</a><a class="button" href="#jams">Game Jam</a><a class="button" href="#devlogs">Devlogs</a></div>';
+const creatorNav=()=>'<div class="actions"><a class="button" href="#hub">Team Studios</a><a class="button" href="#studio">Code editor</a><a class="button" href="#art">Pixel & animation</a><a class="button" href="#vector">Vector Studio · 106 sprites</a><a class="button" href="#bots">AI assistant</a><a class="button" href="#shop">Creator Market</a><a class="button" href="#visual">Visual builder</a><a class="button" href="#jams">Game Jam</a><a class="button" href="#devlogs">Devlogs</a></div>';
 async function creatorHub(id,version){
  if(!user){signInPanel('Create together in Studio');return;}
  if(!id){
@@ -68,7 +68,7 @@ async function artStudio(id,version){
  $('#export-png').onclick=()=>{const a=document.createElement('a');a.download='trencod-sprites.png';a.href=spriteSheet(body());a.click();};
  $('#export-animation').onclick=()=>download('<!doctype html><meta charset="utf-8"><title>Trencod animation</title>'+artMarkup(body()),'trencod-animation.html','text/html');
  $('#export-art').onclick=()=>download(JSON.stringify(body()),'trencod-art.json','application/json');
- $('#use-art').onclick=()=>{try{sessionStorage.setItem('trencod-art-insert',artMarkup(body()));toast('Ready. Open your game in Code and press Insert artwork.');}catch{toast('Browser storage unavailable. Download animation HTML to import into Code.');}};
+ $('#use-art').onclick=async()=>{await saveArt();if(f.id&&!dirty&&version===routeVersion)toast('Open your game in Code → Animation / saved art → choose this artwork → Insert into game.');};
  $('#import-art').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{if(file.size>100000)throw Error('Choose a JSON file under 100 KB.');const x=JSON.parse(await file.text());if(!Array.isArray(x.frames)||x.frames.length<1||x.frames.length>16||!Number.isInteger(x.fps)||x.fps<1||x.fps>24||x.frames.some(f=>!Array.isArray(f)||f.length!==256||f.some(c=>typeof c!=='string'||! /^(#[a-fA-F0-9]{6})?$/.test(c))))throw Error('Choose a Trencod editable pixel-art JSON.');const importedMusic=TrencodMusic.clean(x.music);if(version!==routeVersion)return;checkpoint();setMusic(importedMusic);frames=x.frames;index=0;$('#art-fps').value=x.fps;changed();}catch(e){toast(e.message);}};
  render();
 }
