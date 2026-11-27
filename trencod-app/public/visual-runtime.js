@@ -10,10 +10,10 @@ function drawSceneBackground(ctx,bg={}){
 function drawSpritePixels(ctx,o,art,time){if(art.type==='vector'){drawVectorSprite(ctx,o,art);return;}const frame=art.frames[Math.floor(time/1000*art.fps)%art.frames.length];for(let i=0;i<256;i++)if(frame[i]){ctx.fillStyle=frame[i];const x=Math.round(o.x+(i%16)*o.w/16),y=Math.round(o.y+Math.floor(i/16)*o.h/16);ctx.fillRect(x,y,Math.ceil(o.w/16),Math.ceil(o.h/16));}}
 (()=>{
  const canvas=document.querySelector('#game'),ctx=canvas.getContext('2d'),status=document.querySelector('#game-status'),keys=new Set();
- const solids=scene.objects.filter(o=>o.type==='platform'),spawn=scene.objects.find(o=>o.type==='player'),goal=scene.objects.find(o=>o.type==='goal');
+ const worldWidth=scene.world_width||800;let solids;const spawn=scene.objects.find(o=>o.type==='player'),goal=scene.objects.find(o=>o.type==='goal');
  let player,coins,enemies,pets,decorations,won=false,dead=false,jumpQueued=false,last=0;
  const hit=(a,b)=>a.x<b.x+b.w&&a.x+a.w>b.x&&a.y<b.y+b.h&&a.y+a.h>b.y;
- function reset(){player={...spawn,vx:0,vy:0,ground:false};coins=scene.objects.filter(o=>o.type==='coin').map(o=>({...o,taken:false}));enemies=scene.objects.filter(o=>o.type==='enemy').map(o=>({...o,originX:o.x,direction:1}));pets=scene.objects.filter(o=>o.type==='pet').map(o=>({...o}));decorations=scene.objects.filter(o=>o.type==='decoration').map(o=>({...o,originX:o.x,direction:1}));won=dead=false;keys.clear();jumpQueued=false;status.textContent='Collect all coins, avoid enemies, then reach the flag.';}
+ function reset(){solids=scene.objects.filter(o=>o.type==='platform').map(o=>({...o,originX:o.x,direction:1}));player={...spawn,vx:0,vy:0,ground:false};coins=scene.objects.filter(o=>o.type==='coin').map(o=>({...o,taken:false}));enemies=scene.objects.filter(o=>o.type==='enemy').map(o=>({...o,originX:o.x,direction:1}));pets=scene.objects.filter(o=>o.type==='pet').map(o=>({...o}));decorations=scene.objects.filter(o=>o.type==='decoration').map(o=>({...o,originX:o.x,direction:1}));won=dead=false;keys.clear();jumpQueued=false;status.textContent='Collect all coins, avoid enemies, then reach the flag.';}
  function press(k){if(k==='jump')jumpQueued=true;else keys.add(k);}
  for(const [id,key] of [['left','left'],['right','right'],['jump','jump']]){const b=document.querySelector('#'+id);b.onpointerdown=e=>{e.preventDefault();b.setPointerCapture(e.pointerId);press(key);};b.onpointerup=b.onpointercancel=()=>keys.delete(key);}
  document.querySelector('#reset').onclick=reset;
@@ -23,14 +23,15 @@ function drawSpritePixels(ctx,o,art,time){if(art.type==='vector'){drawVectorSpri
  if(won||dead)return;
  player.vx=((keys.has('right')?1:0)-(keys.has('left')?1:0))*scene.speed;
  if(jumpQueued&&player.ground){player.vy=-scene.jump;player.ground=false;}jumpQueued=false;
- player.x+=player.vx*dt;
- for(const s of solids)if(hit(player,s))player.x=player.vx>0?s.x-player.w:s.x+s.w;
- player.x=Math.max(0,Math.min(800-player.w,player.x));player.vy+=scene.gravity*dt;player.y+=player.vy*dt;player.ground=false;
+ let carry=0;for(const platform of solids){const riding=player.ground&&Math.abs(player.y+player.h-platform.y)<1&&player.x+player.w>platform.x&&player.x<platform.x+platform.w;const old=platform.x;moveActor(platform,platform.movement||'still',platform.move_speed??80,dt,player,worldWidth);if(riding)carry=platform.x-old;}
+ const dx=player.vx*dt+carry;player.x+=dx;
+ for(const s of solids)if(dx!==0&&hit(player,s))player.x=dx>0?s.x-player.w:s.x+s.w;
+ player.x=Math.max(0,Math.min(worldWidth-player.w,player.x));player.vy+=scene.gravity*dt;player.y+=player.vy*dt;player.ground=false;
  for(const s of solids)if(hit(player,s)){if(player.vy>=0){player.y=s.y-player.h;player.vy=0;player.ground=true;}else{player.y=s.y+s.h;player.vy=0;}}
  for(const c of coins)if(!c.taken&&hit(player,c))c.taken=true;
- for(const e of enemies){moveActor(e,e.movement||'chase',e.move_speed??scene.speed*.27,dt,player);if(hit(player,e))dead=true;}
- for(const [i,p] of pets.entries())moveActor(p,p.movement||'follow',p.move_speed??120,dt,{x:Math.max(0,player.x-40-(i%5)*25),y:Math.max(0,player.y-12-Math.floor(i/5)*16)});
- for(const d of decorations)moveActor(d,d.movement||'still',d.move_speed??120,dt,player);
+ for(const e of enemies){moveActor(e,e.movement||'chase',e.move_speed??scene.speed*.27,dt,player,worldWidth);if(hit(player,e))dead=true;}
+ for(const [i,p] of pets.entries())moveActor(p,p.movement||'follow',p.move_speed??120,dt,{x:Math.max(0,player.x-40-(i%5)*25),y:Math.max(0,player.y-12-Math.floor(i/5)*16)},worldWidth);
+ for(const d of decorations)moveActor(d,d.movement||'still',d.move_speed??120,dt,player,worldWidth);
  if(player.y>480)dead=true;
  if(hit(player,goal)&&coins.every(c=>c.taken))won=true;
  status.textContent=won?'You win! Your adventure is complete.':dead?'Try again! Press Restart.':`Coins: ${coins.filter(c=>c.taken).length} / ${coins.length} · Reach the flag`;
@@ -38,17 +39,18 @@ function drawSpritePixels(ctx,o,art,time){if(art.type==='vector'){drawVectorSpri
  function render(){
  drawSceneBackground(ctx,scene.background);
  const object=(o)=>{if(scene.sprites?.[o.sprite]){drawSpritePixels(ctx,o,scene.sprites[o.sprite],performance.now());return;}ctx.fillStyle={platform:'#405678',coin:'#ffd36d',goal:'#b4a0ff',enemy:'#ff829d',pet:'#ddba86',decoration:'#ac9cdb',player:dead?'#71829d':'#5eead4'}[o.type];if(o.type==='coin'){ctx.beginPath();ctx.ellipse(o.x+o.w/2,o.y+o.h/2,o.w/2,o.h/2,0,0,Math.PI*2);ctx.fill();}else if(o.type==='goal'){ctx.fillRect(o.x,o.y,4,o.h);ctx.fillRect(o.x,o.y,o.w,o.h*.5);}else ctx.fillRect(o.x,o.y,o.w,o.h);if(o.type==='platform'){ctx.fillStyle='#5eead4';ctx.fillRect(o.x,o.y,o.w,5);}if(o.type==='player'||o.type==='enemy'){ctx.fillStyle='#15263d';ctx.fillRect(o.x+5,o.y+7,4,5);ctx.fillRect(o.x+o.w-9,o.y+7,4,5);}};
- for(const o of [...decorations,...solids,...coins.filter(c=>!c.taken),goal,...enemies,...pets,player])object(o);
+ const camera=Math.max(0,Math.min(worldWidth-800,player.x+player.w/2-400));ctx.save();ctx.translate(-camera,0);
+ for(const o of [...decorations,...solids,...coins.filter(c=>!c.taken),goal,...enemies,...pets,player])object(o);ctx.restore();
  if(won||dead){ctx.fillStyle='#081020b8';ctx.fillRect(0,0,800,450);ctx.fillStyle='white';ctx.font='bold 38px system-ui';ctx.textAlign='center';ctx.fillText(won?'Adventure complete!':'Try again!',400,220);ctx.textAlign='start';}}
 
  function frame(t){const dt=Math.min((t-last)/1000||0,.025);last=t;step(dt);render();requestAnimationFrame(frame);}reset();requestAnimationFrame(frame);
 })();
 
 // Behaviour belongs to the object, never to its costume.
-function moveActor(actor,movement,speed,dt,target){
+function moveActor(actor,movement,speed,dt,target,worldWidth=800){
  const distance=Math.max(0,speed)*dt;
  if(movement==='chase')actor.x+=Math.sign(target.x-actor.x)*Math.min(Math.abs(target.x-actor.x),distance);
  if(movement==='follow'){const dx=target.x-actor.x,dy=target.y-actor.y,length=Math.hypot(dx,dy);if(length>1){const step=Math.min(length,distance);actor.x+=dx/length*step;actor.y+=dy/length*step;}}
- if(movement==='patrol'){const min=Math.max(0,(actor.originX??actor.x)-80),max=Math.min(800-actor.w,(actor.originX??actor.x)+80);actor.x+=(actor.direction||1)*distance;if(actor.x>=max){actor.x=max;actor.direction=-1;}if(actor.x<=min){actor.x=min;actor.direction=1;}}
- actor.x=Math.max(0,Math.min(800-actor.w,actor.x));actor.y=Math.max(0,Math.min(450-actor.h,actor.y));
+ if(movement==='patrol'){const min=Math.max(0,(actor.originX??actor.x)-80),max=Math.min(worldWidth-actor.w,(actor.originX??actor.x)+80);actor.x+=(actor.direction||1)*distance;if(actor.x>=max){actor.x=max;actor.direction=-1;}if(actor.x<=min){actor.x=min;actor.direction=1;}}
+ actor.x=Math.max(0,Math.min(worldWidth-actor.w,actor.x));actor.y=Math.max(0,Math.min(450-actor.h,actor.y));
 }
