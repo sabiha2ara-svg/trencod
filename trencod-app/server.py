@@ -120,7 +120,8 @@ def before():
         g.data=data
         who=hashlib.sha256((request.remote_addr or 'unknown').encode()).hexdigest()
         if request.path in ('/api/login','/api/register') and limited(who+request.path,30,300):return fail('Too many attempts. Please wait five minutes.',429)
-    g.user=current_user()
+    public_info=(request.endpoint or '').startswith('docs_') or request.endpoint in {'help_page','status','sitemap','robots','health'}
+    g.user=None if request.method=='GET' and public_info else current_user()
 
 @app.after_request
 def headers(response):
@@ -149,7 +150,7 @@ def health():
     try:
         with db() as c:c.execute('SELECT 1').fetchone()
     except Exception:return jsonify(ok=False,error='Database unavailable'),503
-    return jsonify(ok=True,version='0.14.2',storage='postgres' if os.environ.get('DATABASE_URL') else 'local-sqlite')
+    return jsonify(ok=True,version='0.16.1',storage='postgres' if os.environ.get('DATABASE_URL') else 'local-sqlite')
 @app.get('/api/me')
 def me():return jsonify(user=g.user)
 @app.get('/api/my-backup')
@@ -356,6 +357,12 @@ def index():return send_from_directory(PUBLIC,'index.html')
 def static_file(filename):
     if filename not in {'music.js','my-projects.js','navigation.js','python-preview.js','layout-fixes.css','vector-core.js','vector-studio.js','vector.css','sprites.js','workspace.js','workspace.css','app.js','style.css','intro.css','intro.js','trencod-icon.png','theme.js','theme.css','creator.js','creator.css','profile.js','profile.css','adventures.js','adventures.css','visual-runtime.js','quality.js'}:return fail('Page not found.',404)
     return send_from_directory(PUBLIC,filename)
+
+from documentation import install as install_documentation
+install_documentation(app, globals())
+
+from support import install as install_support
+install_support(app, globals())
 
 from studio_features import install
 install(app,globals())

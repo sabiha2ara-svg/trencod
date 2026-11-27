@@ -25,6 +25,9 @@ def week(c):
 def validate_scene(s):
  if not isinstance(s,dict):raise ValueError('Invalid scene.')
  out={}
+ width=s.get('world_width',800)
+ if type(width) is not int or width not in (800,1600,2400,3200,4000):raise ValueError('Use 1–5 areas of 800 pixels.')
+ if 'world_width' in s:out['world_width']=width
  if s.get('background') is not None:
   bg=s['background']
   if not isinstance(bg,dict) or bg.get('theme') not in {'night','meadow','desert','snow','sunset','space','solid'}:raise ValueError('Choose a supported background style.')
@@ -60,15 +63,15 @@ def validate_scene(s):
  for e in ents:
   if not isinstance(e,dict) or e.get('type') not in types:raise ValueError('Unknown object.')
   row={'type':e['type']}
-  for k,hi in [('x',800),('y',450),('w',800),('h',450)]:
+  for k,hi in [('x',width),('y',450),('w',800),('h',450)]:
    v=e.get(k)
    if type(v) not in (int,float) or not math.isfinite(v) or not 0<=v<=hi or (k in ('w','h') and v<8):raise ValueError('Object coordinates are outside the scene.')
    row[k]=v
-  if row['x']+row['w']>800 or row['y']+row['h']>450:raise ValueError('Keep objects inside the canvas.')
+  if row['x']+row['w']>width or row['y']+row['h']>450:raise ValueError('Keep objects inside the canvas.')
   if e.get('sprite') is not None:
    if not isinstance(e['sprite'],str) or e['sprite'] not in normalized:raise ValueError('Object sprite was not found.')
    row['sprite']=e['sprite']
-  allowed_moves={'enemy':{'chase','patrol','still'},'pet':{'follow','still'},'decoration':{'still','patrol'}}
+  allowed_moves={'platform':{'still','patrol'},'enemy':{'chase','patrol','still'},'pet':{'follow','still'},'decoration':{'still','patrol'}}
   if 'movement' in e:
    if not isinstance(e['movement'],str) or e['movement'] not in allowed_moves.get(e['type'],set()):raise ValueError('Movement does not match the sprite role.')
    row['movement']=e['movement']

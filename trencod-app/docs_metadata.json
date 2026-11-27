@@ -1,0 +1,30 @@
+{
+  "about": {
+    "title": "About Trencod",
+    "description": "Who Trencod is for, what it offers, and its beta limits."
+  },
+  "security": {
+    "title": "Security & backend",
+    "description": "How Trencod handles authentication, database storage and browser code execution."
+  },
+  "privacy": {
+    "title": "Privacy & data information",
+    "description": "What Trencod stores, what is public, and how to ask about your data."
+  },
+  "market-guide": {
+    "title": "Buying & selling guide",
+    "description": "Understand exclusive game transfers, demo coins and purchase problems."
+  },
+  "getting-started": {
+    "title": "Getting started",
+    "description": "Step-by-step help for saving creations, team Studios and the marketplace."
+  },
+  "community": {
+    "title": "Community guidelines",
+    "description": "How to work with other creators and report abuse."
+  },
+  "changelog": {
+    "title": "Changelog",
+    "description": "Trencod releases, fixes and known verification limits."
+  }
+}

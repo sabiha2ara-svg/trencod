@@ -7,6 +7,7 @@ from flask import g, jsonify, request
 def schema(c):
     c.executescript('''
     CREATE TABLE IF NOT EXISTS exclusive_sales(kind TEXT,listing_id TEXT,asset_id TEXT,seller TEXT,buyer TEXT,body TEXT,created REAL,PRIMARY KEY(kind,listing_id),UNIQUE(kind,asset_id));
+    CREATE TABLE IF NOT EXISTS feedback(id TEXT PRIMARY KEY,user_id TEXT,category TEXT,subject TEXT,body TEXT,status TEXT,reply TEXT,created REAL,updated REAL);
     CREATE TABLE IF NOT EXISTS milestones(user_id TEXT,day INTEGER,PRIMARY KEY(user_id,day));
     CREATE TABLE IF NOT EXISTS rooms(id TEXT PRIMARY KEY,owner TEXT,name TEXT,invite TEXT UNIQUE,created REAL);
     CREATE TABLE IF NOT EXISTS members(room_id TEXT,user_id TEXT,PRIMARY KEY(room_id,user_id));
@@ -241,6 +242,7 @@ def install(app, core):
             p=c.execute('SELECT l.*,u.name seller FROM listings l JOIN users u ON u.id=l.owner WHERE l.id=? AND active=1',(g.data.get('id'),)).fetchone()
             if not p:return fail('Listing unavailable.',404)
             if p['owner']==g.user['id']:return fail('You already own your game.')
+            if 'expected_price' in g.data and (g.data['expected_price']!=p['price'] or g.data.get('expected_credit')!=bool(p['credit'])):return fail('The price or credit terms changed. Refresh the market and review them before buying. No coins charged.',409)
             if c.execute('SELECT 1 FROM licenses WHERE user_id=? AND listing_id=?',(g.user['id'],p['id'])).fetchone():return jsonify(ok=True)
             asset=c.execute('SELECT * FROM projects WHERE id=? AND owner=?',(p['project_id'],p['owner'])).fetchone()
             if not asset:return fail('Seller no longer owns this project.',409)
@@ -260,7 +262,7 @@ def install(app, core):
             c.execute('INSERT INTO exclusive_sales VALUES(?,?,?,?,?,?,?)',('code',p['id'],p['project_id'],p['owner'],g.user['id'],p['body'],time.time()))
             for uid,amount,reason in [(g.user['id'],-p['price'],'Exclusive purchase: '+p['title']),(p['owner'],p['price'],'Sale: '+p['title'])]:
                 c.execute('INSERT INTO ledger(user_id,amount,reason,event_key,created) VALUES(?,?,?,?,?)',(uid,amount,reason,'license:'+p['id']+':'+g.user['id'],time.time()))
-        return jsonify(ok=True)
+        return jsonify(ok=True,id=p['project_id'])
 
     @app.get('/api/market/owned/<lid>')
     @auth
